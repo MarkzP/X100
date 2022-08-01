@@ -83,10 +83,14 @@ float eq1c[200];
 const int chorusDelaySamples = 1024;
 float chorusDelayLine[chorusDelaySamples];
 
-BAAudioControlWM8731 codec;
-// regArray[WM8731_REG_INTERFACE] = 0b00001010;
-// write(WM8731_REG_INTERFACE, regArray[WM8731_REG_INTERFACE]); // I2S, 24 bit, MCLK slave
+//#define UX1_AK4528
 
+#define PIN_AK4528_VT   9
+#define PIN_AK4528_PDN  17
+#ifdef UX1_AK4528
+#else
+BAAudioControlWM8731 codec;
+#endif
 
 BAPhysicalControls controls(0, 3, 0, 0);
 
@@ -100,7 +104,13 @@ void setChannel(X100_Channels ch)
 {
   if (ch == channel) return;
   
-  AudioNoInterrupts(); 
+  AudioNoInterrupts();
+  mixerMode.gain(1, 0.0f);
+  mixerMode.gain(2, 0.0f);
+  AudioInterrupts();
+  delay(20);
+  
+  AudioNoInterrupts();
   distortion.gain(ch == X100_Dist ? 25.0f
                 : ch == X100_Edge ? 2.5f
                 : 1.0f);
@@ -164,35 +174,75 @@ void setup()
   mixerR.gain(2, reverbGain);
   mixerL.gain(2, reverbGain);
  
+  mixerR.gain(0, mainGain);
+  mixerL.gain(0, mainGain);
   mixerR.gain(3, 0.0f);
   mixerL.gain(3, 0.0f);
-  
-  delay(500); // allow the WM7831 extra time to power up
-  codec.enable();
 
   delay(500);
+#ifdef UX1_AK4528
+  pinMode(PIN_AK4528_VT, OUTPUT);
+  digitalWriteFast(PIN_AK4528_VT, HIGH);
+  delay(100);
+  pinMode(PIN_AK4528_PDN, OUTPUT);
+  digitalWriteFast(PIN_AK4528_PDN, LOW);
+  delay(10);
+  digitalWriteFast(PIN_AK4528_PDN, HIGH);
+  delay(100);
+#else  
+  codec.enable();
+  delay(500);
+#endif  
 
-  codec.setHeadphoneVolume(0.8f);
+  
 
   // Create the controls using the calib values
   controls.addPot(BA_EXPAND_POT1_PIN, 0, 1023, false);
   controls.addPot(BA_EXPAND_POT2_PIN, 0, 1023, false);
   controls.addPot(BA_EXPAND_POT3_PIN, 0, 1023, false);
 
+  pinMode(GPIO0, INPUT_PULLUP);
+  pinMode(GPIO1, INPUT_PULLUP);
+  pinMode(GPIO2, INPUT_PULLUP);
+  pinMode(GPIO3, INPUT_PULLUP);
+
   setChannel(X100_Cln1);
+
+#ifndef UX1_AK4528  
+  codec.setHeadphoneVolume(0.8f);
+#endif
 }
 
 void loop()
 {
+#ifdef UX1_AK4528
+
+#else  
   float value;
     
   if (controls.checkPotValue(0, value))
   {
-    if (value < 0.20) setChannel(X100_Cln2);
-    if (value > 0.25 && value < 0.45) setChannel(X100_Cln1);
-    if (value > 0.50 && value < 0.70) setChannel(X100_Edge);
-    if (value > 0.75) { setChannel(X100_Dist); }
+    if (value < 0.4f) codec.setHeadphoneVolume(0.6f);
+    if (value > 0.6f) codec.setHeadphoneVolume(0.8f);
   }
 
-  delay(20);
+  if (controls.checkPotValue(1, value))
+  {
+    if (value < 0.4f) { mixerR.gain(1, 0.0f);         mixerL.gain(1, 0.0f); }
+    if (value > 0.6f) { mixerR.gain(1, -chorusGain);  mixerL.gain(1, chorusGain); }
+  }
+  
+  if (controls.checkPotValue(2, value))
+  {
+    if (value < 0.4f) { mixerR.gain(2, 0.0f);         mixerL.gain(2, 0.0f); }
+    if (value > 0.6f) { mixerR.gain(2, reverbGain);   mixerL.gain(2, reverbGain); }
+  }
+#endif  
+
+  if (digitalReadFast(GPIO0) == 0) setChannel(X100_Dist);
+  else if (digitalReadFast(GPIO1) == 0) setChannel(X100_Edge);
+  else if (digitalReadFast(GPIO2) == 0) setChannel(X100_Cln1);
+  else if (digitalReadFast(GPIO3) == 0) setChannel(X100_Cln2);
+
+  delay(10);
 }
