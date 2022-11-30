@@ -59,8 +59,6 @@ AudioConnection_F32          patchCord27(mixerL, 0, audioOut, 0);
 AudioConnection_F32          patchCord28(mixerR, 0, audioOut, 1);
 // GUItool: end automatically generated code
 
-
-
 typedef enum
 {
   X100_mute   = 0,
@@ -155,7 +153,6 @@ void setChannel(X100_Channels ch)
   dynamics.detector(AudioEffectDynamics_F32::DetectorType_DiodeBridge, 0.002f, 0.0f);
   dynamics.gate(-75.0f, 0.0f, 3.0f, 6.0f, -14.0f);
   dynamics.compression(-55.0f, 0.0015f, 2.5f, 4.5f);
-
   
   distortion.gain(ch == X100_Dist ?  25.0f
                   : ch == X100_Edge ? 2.5f
