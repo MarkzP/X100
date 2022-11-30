@@ -5,12 +5,13 @@
 ## Dependencies:
 
  Hardware:
- - Teensy 4.0/4.1
- - Teensy Guitar Audio Shield http://blackaddr.com/products/
- - 1 pot connected on A0 to select between Dist, Edge, Cln1 & Cln2
+ - Hacked TonePort UX1 (codec connected directly to Teensy I2S)
+ - 4 pushbuttons connected to pins 2,3,4,5 to select channel
 
 Libraries:
 
- - BALibrary: https://github.com/Blackaddr/BALibrary
  - Teensy OpenAudio Library https://github.com/chipaudette/OpenAudio_ArduinoLibrary
  - AudioEffectDynamics_F32 https://github.com/MarkzP/AudioEffectDynamics_F32
+ - ModulatedDelay_F32 https://github.com/MarkzP/ModulatedDelay_F32
+ - Freeverb_F32 https://github.com/MarkzP/Freeverb_F32
+ - NonLinear_F32 https://github.com/MarkzP/NonLinear_F32
