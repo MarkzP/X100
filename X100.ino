@@ -167,6 +167,7 @@ void setChannel(X100_Channels ch)
   postEq.equalizerNew(posteqn, &posteqf[0], ch == X100_Cln2 ? &eq2g[0] : &eq1g[0], 66, &posteqc[0], 60.0f);			
   
   delay(20);
+  inputMixer.gain(0, ch == X100_mute ? 0.0f : 1.0f);
   inputMixer.gain(1, ch == X100_mute ? 0.0f : 1.0f);
   channel = ch;
 }

@@ -24,8 +24,18 @@ void HW_Setup() {
 
 int clip = 0;
 float clipLevel = 0.944061f; // -0.5db
+elapsedMillis reportInput;
+float levelAvg = 0.0f;
 
 void HW_Loop() {
+  if (reportInput > 20) {
+    reportInput = 0;
+    levelAvg += (dynamics.readDetector() - levelAvg) * 0.1f;
+    
+    Serial.print("-126,0,");
+    Serial.println(levelAvg, 5);
+  }
+  
   if (inputLevel.available())
   {
     float lin = fabsf(inputLevel.read());
