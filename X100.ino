@@ -71,12 +71,14 @@ typedef enum
   
 } X100_Channels;
 
-const int posteqn = 7;
+const int posteqnf = 7;
 float posteqf[]  = {  100.0f,      200.0f,      400.0f,      800.0f,      1600.0f,      3200.0f,      6400.0f };
 float eq1g[]     = {   -6.0f,       -3.0f,       -1.5f,       -9.0f,       -12.0f,         1.5f,        -9.0f };
 float eq2g[]     = {   -9.0f,       -6.0f,        0.5f,        0.0f,         0.0f,         4.5f,         6.0f };
 float posteqg[]  = {    0.0f,        0.0f,        0.0f,        0.0f,         0.0f,         0.0f,         0.0f };
+const int posteqnc = 33;
 float posteqc[200];
+float posteqsl = 60.0f;
 
 const int chorusDelaySamples = 1024;
 float chorusDelayLine[chorusDelaySamples];
@@ -127,7 +129,7 @@ void setDelay(bool enable)
   if (enable) {
     delayMixer.gain(0, 0.7f);
     delayMixer.gain(1, 0.3f);
-    delayLine.delay(0, 400);
+    delayLine.delay(0, 300);
     delayFilter.setHighpass(0, 500.0f, 0.7071f);
     delayFilter.setLowpass(1, 3000.0f, 0.7071f);
     delayFilter.begin();
@@ -167,11 +169,28 @@ void setChannel(X100_Channels ch)
                 :  ch == X100_Cln1 ? 1.0f
                 :  0.0f);
 				
-  postEq.equalizerNew(posteqn, &posteqf[0], ch == X100_Cln2 ? &eq2g[0] : &eq1g[0], 66, &posteqc[0], 60.0f);			
+  postEq.equalizerNew(posteqnf, &posteqf[0], ch == X100_Cln2 ? &eq2g[0] : &eq1g[0], posteqnc, &posteqc[0], posteqsl);			
   
   delay(20);
+  inputMixer.gain(0, ch == X100_mute ? 0.0f : -1.0f);
   inputMixer.gain(1, ch == X100_mute ? 0.0f : 1.0f);
   channel = ch;
+}
+
+float inputLevelDb = 0.0f;
+float inputLevelAvg = 0.0f;
+elapsedMillis reportInput;
+
+
+inline float unit2db(float u)
+{
+  if (u < 5.001554864521944e-7f) return -126.0f;
+  union { float f; uint32_t i; } vx = { u };
+  float y = vx.i;
+  y *= 1.1920928955078125e-7f;
+  y -= 126.94269504f;
+
+  return 6.02f * y;
 }
 
 void setup()
@@ -190,6 +209,19 @@ void setup()
 
 
 void loop() {
+  if (inputLevel.available())
+  {
+    float inputUnit = fabsf(inputLevel.read());
+    inputLevelDb = unit2db(inputUnit);    
+    inputLevelAvg += (inputLevelDb - inputLevelAvg) * 0.01f;
+  }
+
+  if (reportInput > 50) {
+    reportInput = 0;
+    Serial.print("-126,0,");
+    Serial.println(inputLevelAvg, 5);
+  }
+  
   HW_Loop();
   handleSercom();
 }

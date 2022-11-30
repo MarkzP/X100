@@ -38,34 +38,9 @@ void HW_Setup() {
   pinMode(PIN_CLN2, INPUT_PULLUP);
 }
 
-int clip = 0;
-float clipLevel = 0.944061f; // -0.5db
-
 
 void HW_Loop() {
-  if (inputLevel.available())
-  {
-    float lin = fabsf(inputLevel.read());
 
-    if (lin > clipLevel) clip = 255;
-    
-    int level = map(lin, 0.0f, 1.0f, 0.0f, 200.0f);
-
-    int red = channel == X100_Dist || channel == X100_Cln1 ? level : 0;
-    int green = channel == X100_Cln1 || channel == X100_Edge ? (level * 0.5f) : 0;
-    int blue = channel == X100_Cln2 ? level : 0;
-
-    if (clip > 0) {
-      red = ((clip & 16) > 0 ? clip : 0);
-      green = 0;
-      blue = 0;      
-      clip--;
-    }
-    
-    leds.setPixel(0, leds.Color(green, red, blue));
-    leds.show();
-  }
-  
   if (digitalReadFast(PIN_DIST)) 
   {
     if (hold_Dist > 50 && hold_Dist < 500) setChannel(X100_Dist);
