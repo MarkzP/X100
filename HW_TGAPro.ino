@@ -18,35 +18,13 @@ void HW_Setup() {
   delay(100);
   codecControl.enable();
   delay(100);
+  codecControl.setHPFDisable(false);
+  codecControl.setRightInputGain(24);
+  codecControl.setLeftInputGain(24); // Switch in +0db
 
-  codecControl.setHeadphoneVolume(0.5f);
+  //codecControl.setHeadphoneVolume(0.5f);
 }
 
-int clip = 0;
-float clipLevel = 0.944061f; // -0.5db
-elapsedMillis reportInput;
-float levelAvg = 0.0f;
-
 void HW_Loop() {
-  if (reportInput > 20) {
-    reportInput = 0;
-    levelAvg += (dynamics.readDetector() - levelAvg) * 0.1f;
-    
-    Serial.print("-126,0,");
-    Serial.println(levelAvg, 5);
-  }
-  
-  if (inputLevel.available())
-  {
-    float lin = fabsf(inputLevel.read());
 
-    if (lin > clipLevel) {
-      gpio.setLed(); 
-      clip = 255;
-    }    
-    
-    if (clip > 0 && --clip == 0) {
-      gpio.clearLed();
-    }
-  }
 }

@@ -11,9 +11,9 @@ void handleCommand() {
       mixerL.gain(i, com_params[i]); mixerR.gain(i, com_params[i]); 
     }
   }
-  else if (strncmp("postEq", com_instance, maxLen) == 0 && com_pi <= posteqn) {
+  else if (strncmp("postEq", com_instance, maxLen) == 0 && com_pi <= posteqnf) {
     for (int i = 0; i < com_pi; i++) posteqg[i] = com_params[i];
-    postEq.equalizerNew(posteqn, &posteqf[0], &posteqg[0], 66, &posteqc[0], 60.0f);
+    postEq.equalizerNew(posteqnf, &posteqf[0], &posteqg[0], posteqnc, &posteqc[0], posteqsl);
   }
 // BEGIN AUTO GENERATED
   else if (strncmp("preEq", com_instance, maxLen) == 0) {
