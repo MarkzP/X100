@@ -34,11 +34,11 @@ void initSercom() {
 
 void handleChar(char c) {
 	if (c == ';') {
-		com_state = COM_Init;
+		initSercom();
 		return;
 	}
 	
-    switch (com_state) {
+  switch (com_state) {
 		case COM_Init: // wait for digit
 		  if (c <= ' ' || c > '~') break;
 		case COM_Instance: // instance name or (
@@ -53,25 +53,20 @@ void handleChar(char c) {
 		  break;
 		case COM_Params: // Params or )
 		  if (c == ',' || c == ')') {
-			while (--com_decimal > 0) com_params[com_pi] /= 10.0;
-			if (com_neg) com_params[com_pi] = -com_params[com_pi];
-			com_neg = false;
-			if (com_pi < maxParams) com_pi++;
-			if (c == ')') {
-			  //Serial.print(com_instance);
-			  //if (com_fi > 0) { Serial.print("."); Serial.print(com_function); }
-			  //Serial.print("(");
-			  //for (int i = 0; i < com_pi; i++) { if (i > 0) Serial.print(", "); Serial.print(com_params[i], 5); }
-			  //Serial.println(");");
-			  handleCommand();
-			  initSercom();
-			}
+  			while (--com_decimal > 0) com_params[com_pi] /= 10.0;
+  			if (com_neg) com_params[com_pi] = -com_params[com_pi];
+  			com_neg = false;
+  			if (com_pi < maxParams) com_pi++;
+  			if (c == ')') {
+  			  handleCommand();
+  			  initSercom();
+  			}
 		  }
 		  else if (c == '-') com_neg = true;
 		  else if (c == '.') com_decimal = 1;
 		  else if (c >= '0' && c <= '9') {
-			com_params[com_pi] = (com_params[com_pi] * 10.0) + (double)(c - '0');
-			if (com_decimal > 0) com_decimal++;
+			  com_params[com_pi] = (com_params[com_pi] * 10.0) + (double)(c - '0');
+			  if (com_decimal > 0) com_decimal++;
 		  }
 		  break;  
 	}

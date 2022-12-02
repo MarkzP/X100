@@ -141,30 +141,36 @@ class SliderGroup
 		return this;
 	}
 	
-	public SliderGroup AddFreqSlider(string name, float value, float min = 1.0f, float max = 22000.0f) => AddSlider(name, min, max, value);
+	public SliderGroup AddFreqSlider(string name, float value, float min = 20.0f, float max = 20000.0f) => AddSlider(name, min, max, value);
 	public SliderGroup AddDbSlider(string name, float value, float min = -96.0f, float max = 96.0f) => AddSlider(name, min, max, value);
 	public SliderGroup AddEqSlider(float freq, float value, float min = -36.0f, float max = 12.0f) => AddSlider($"{freq} Hz", min, max, value);
 	public SliderGroup AddGainSlider(string name, float value, float min = 0.0f, float max = 1.0f) => AddSlider(name, min, max, value);
-	public SliderGroup AddQSlider(string name, float value = 0.7071f) => AddSlider(name, 0.001f, 15.0f, value);
+	public SliderGroup AddQSlider(string name, float value = 0.7071f) => AddSlider(name, 0.5f, 2.5f, value);
 	public SliderGroup AddSlopeSlider(string name, float value) => AddSlider(name, 0.001f, 15.0f, value);
 	public SliderGroup AddTimeSlider(string name, float value, float max = 10.0f) => AddSlider(name, 0.0f, max, value);	
+	public SliderGroup AddWaveformSlider(string name, int value) => AddSlider(name, 0.0f, 1.0f, (float)value);
 	
 	public FieldSet Dump() => new FieldSet(name, sp).Dump();
 }
 
 void Main()
 {
+	new SliderGroup("Input Mixer", "inputMixer")
+			.AddGainSlider("Microphone", 0.0f)
+			.AddGainSlider("Instrument", 1.0f)
+			.Dump();
+	
 	new SliderGroup("preEq", "preEq")
 			.AddFreqSlider("High Pass freq", 200.0f)
 			.AddQSlider("High Pass Q")
 			.AddFreqSlider("Low Shelf freq", 1000.0f)
 			.AddDbSlider("Low Shelf gain", -18.0f)
 			.AddSlopeSlider("Low Shelf slope", 0.2f)
-			.AddFreqSlider("Low Pass freq", 2000.0f)
+			.AddFreqSlider("Low Pass freq", 2400.0f)
 			.AddQSlider("Low Pass Q", 1.7f)
 			.Dump();
 	
-	new SliderGroup("Gate", "dynamics.gate")
+	new SliderGroup("Gate", "gate")
 			.AddDbSlider("Threshold", -75.0f, -126.0f, 0.0f)
 			.AddTimeSlider("Attack", 0.0f, 0.5f)
 			.AddTimeSlider("Release", 3.0f)
@@ -172,12 +178,12 @@ void Main()
 			.AddDbSlider("Attenuation", -14.0f, -126.0f, 0.0f)			
 			.Dump();
 
-	new SliderGroup("Compression", "dynamics.compression")
+	new SliderGroup("Compression", "compression")
 			.AddDbSlider("Threshold", -55.0f, -126.0f, 0.0f)
 			.AddTimeSlider("Attack", 0.0015f, 0.5f)
 			.AddTimeSlider("Release", 2.5f)
-			.AddSlider("Ratio", 1.0f, 60.0f, 4.5f)
-			.AddSlider("Knee width", 0.0f, 18.0f, 3.0f)
+			.AddSlider("Ratio", 1.0f, 20.0f, 4.5f)
+			.AddSlider("Knee width", 0.0f, 9.0f, 3.0f)
 			.Dump();
 
 	new SliderGroup("Distortion", "distortion")
@@ -188,7 +194,7 @@ void Main()
 
 	new SliderGroup("Post Eq", "postEq")
 			.AddEqSlider(100.0f,   -6.0f)
-			.AddEqSlider(200.0f,   -3.0f)
+			.AddEqSlider(200.0f,   -1.5f)
 			.AddEqSlider(400.0f,   -1.5f)
 			.AddEqSlider(800.0f,   -9.0f)
 			.AddEqSlider(1600.0f, -12.0f)
@@ -196,55 +202,41 @@ void Main()
 			.AddEqSlider(6400.0f, -9.0f)
 			.Dump();
 
-	new SliderGroup("Chorus Modulation", "chorusMod")
-			.AddGainSlider("Depth", 0.032f, 0.0f, 0.1f)
-			.AddSlider("Rate", 0.1f, 10.0f, 1.7f)
-			.Dump();
-
-	new SliderGroup("Chorus Post Filter", "chorusPostFilter")
+	new SliderGroup("Chorus", "chorus")
+			.AddGainSlider("Depth", 0.032f, 0.0f, 1.0f)
+			.AddSlider("Rate", 0.1f, 50.0f, 1.7f)
+			.AddWaveformSlider("Waveform (Sine, Triangle)", 1)
+			.AddFreqSlider("Notch freq", 6500.0f)
+			.AddQSlider("Notch Q", 0.7f)
 			.AddFreqSlider("Low Pass freq", 8000.0f)
 			.AddQSlider("Low Pass Q", 0.5f)
-			.Dump();
-			
-	new SliderGroup("Chorus Post Delay", "chorusPostDelay")
-			.AddSlider("Millisec", 0.0f, 50.0f, 17.0f) 
-			.Dump();
-
-	new SliderGroup("Reverb Pre Delay", "chorusPostDelay")
-			.AddSlider("Millisec", 0.0f, 50.0f, 17.0f)
-			.Dump();
-
-	new SliderGroup("Reverb Mixer", "reverbMixer")
-			.AddGainSlider("Instrument", 1.0f)
-			.AddGainSlider("Mike", 0.0f)
+			.AddSlider("R Post Delay (msec)", 0.0f, 50.0f, 17.0f)
+			.AddGainSlider("Chorus Mix (R)", 0.750f, -1.0f, 1.0f)
+			.AddGainSlider("Chorus Mix (L)", -0.750f, -1.0f, 1.0f)
 			.Dump();
 
 	new SliderGroup("Reverb", "reverb")
+			.AddSlider("Pre delay (msec)", 0.0f, 100.0f, 15.0f)
 			.AddSlider("Room size", 0.0f, 1.0f, 0.9f)
 			.AddSlider("Damping", 0.0f, 1.0f, 0.001f)
+			.AddGainSlider("Reverb Mix (R)", 0.018f)
+			.AddGainSlider("Reverb Mix (L)", 0.018f)
 			.Dump();
 
-	new SliderGroup("Delay Mixer", "delayMixer")
-			.AddGainSlider("Instrument", 0.7f)
-			.AddGainSlider("Mike", 0.0f)
+	new SliderGroup("Delay", "delay")
+			.AddGainSlider("Input", 0.7f)
 			.AddGainSlider("Feedback", 0.3f)
-			.Dump();
-
-	new SliderGroup("Delay", "delayLine")
-			.AddSlider("Millisec", 0.0f, 500.0f, 400.0f)
-			.Dump();
-
-	new SliderGroup("Delay Filter", "delayFilter")
-			.AddFreqSlider("High Pass freq", 500.0f)
+			.AddSlider("Delay (msec)", 0.0f, 2000.0f, 500.0f)
+			.AddFreqSlider("High Pass freq", 250.0f)
 			.AddQSlider("High Pass Q")
-			.AddFreqSlider("Low Pass freq", 3000.0f)
+			.AddFreqSlider("Low Pass freq", 4000.0f)
 			.AddQSlider("Low Pass Q")
+			.AddGainSlider("Delay Mix (R)", 0.0f)
+			.AddGainSlider("Delay Mix (L)", 0.0f)
 			.Dump();
 
-	new SliderGroup("Mixer LR", "mixerLR")
-			.AddGainSlider("Instrument Mix", 1.0f)
-			.AddGainSlider("Chorus Mix", 0.750f)
-			.AddGainSlider("Reverb Mix", 0.018f)
-			.AddGainSlider("Delay Mix", 0.0f)
+	new SliderGroup("Mix", "dryMix")
+			.AddGainSlider("Dry Mix (R)", 1.0f)
+			.AddGainSlider("Dry Mix (L)", 1.0f)
 			.Dump();
 }
