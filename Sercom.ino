@@ -73,5 +73,5 @@ void handleChar(char c) {
 }
 
 void handleSercom() {
-  for (int i = 0; Serial.available() && i < 32; i++) handleChar((char)Serial.read());
+  for (int i = 0; Serial.available() && i < 128; i++) handleChar((char)Serial.read());
 }

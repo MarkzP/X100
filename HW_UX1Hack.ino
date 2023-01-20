@@ -1,17 +1,25 @@
 #include <WS2812Serial.h>
 
-const int numled = 1;
-const int pin = 17;
-byte drawingMemory[numled*3];         //  3 bytes per LED
-DMAMEM byte displayMemory[numled*12]; // 12 bytes per LED
-WS2812Serial leds(numled, displayMemory, drawingMemory, pin, WS2812_RGB);
 
-#define PIN_AK4528_VT   9
-#define PIN_AK4528_PDN  22
+
 #define PIN_DIST        2
 #define PIN_EDGE        3
-#define PIN_CLN1        5
-#define PIN_CLN2        4
+#define PIN_CLN1        4
+#define PIN_CLN2        5
+#define PIN_AK4528_VT   9
+#define PIN_WS2812      17
+#define PIN_BCLK        21
+#define PIN_AK4528_PDN  22
+#define PIN_MCLK        23
+
+
+int clip = 0;
+float clipLevel = 0.944061f; // -0.5db
+const int numled = 1;
+byte drawingMemory[numled*3];         //  3 bytes per LED
+DMAMEM byte displayMemory[numled*12]; // 12 bytes per LED
+WS2812Serial leds(numled, displayMemory, drawingMemory, PIN_WS2812, WS2812_RGB);
+
 
 elapsedMillis hold_Dist;
 elapsedMillis hold_Edge;
@@ -22,6 +30,8 @@ void HW_Setup() {
 
   leds.begin();
   leds.setBrightness(200);
+
+  pinMode(LED_BUILTIN, OUTPUT);
   
   pinMode(PIN_AK4528_PDN, OUTPUT);
   digitalWriteFast(PIN_AK4528_PDN, LOW);
@@ -40,6 +50,25 @@ void HW_Setup() {
 
 
 void HW_Loop() {
+  if (levelIn.available())
+  {
+    float lin = fabsf(levelIn.read());
+
+    if (lin > clipLevel) clip = 255;
+
+    int blue = map(lin, 0.0f, 1.0f, 0.0f, 200.0f);
+    int red = 0;
+    int green = 0;
+    
+    if (clip > 0) {
+      red = blue; //((clip & 16) > 0 ? clip : 0);
+      blue = 0;      
+      clip--;
+    }
+
+    leds.setPixel(0, leds.Color(green, red, blue));
+    leds.show();
+  }
 
   if (digitalReadFast(PIN_DIST)) 
   {
