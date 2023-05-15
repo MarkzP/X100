@@ -8,7 +8,7 @@ typedef enum
 } COMMAND_States;
 
 const int maxLen = 31;
-const int maxParams = 31;
+const int maxParams = 63;
 
 COMMAND_States com_state = COM_Init;
 char com_instance[maxLen + 1];
@@ -73,5 +73,5 @@ void handleChar(char c) {
 }
 
 void handleSercom() {
-  for (int i = 0; Serial.available() && i < 128; i++) handleChar((char)Serial.read());
+  for (int i = 0; Serial.available() && i < 512; i++) handleChar((char)Serial.read());
 }
