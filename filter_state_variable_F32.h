@@ -19,7 +19,7 @@ class AudioFilterStateVariable_F32 :
       frequency();
       resonance();
       octaveControl();
-      controlSmoothing();
+      smoothing();
     }
 
     AudioFilterStateVariable_F32(const AudioSettings_F32 &settings):
@@ -31,7 +31,7 @@ class AudioFilterStateVariable_F32 :
       frequency();
       resonance();
       octaveControl();
-      controlSmoothing();
+      smoothing();
     }
 
     void frequency(float freq = 200.0f)
@@ -60,11 +60,12 @@ class AudioFilterStateVariable_F32 :
       _octave = n;
     }
 
-    void controlSmoothing(float time = 0.1f)
+    void smoothing(float ms = 20.0f)
     {
-      if (time > 0.0f) {
-        if (time > 10.0f) time = 10.0f;
-        _smooth = 1.0f - expf(-3.1699f / (_sample_rate_Hz * time));
+      if (ms > 0.0f)
+      {
+        if (ms > 10000.0f) ms = 10000.0f;
+        _smooth = 1.0f - expf(-3.1699f / (_sample_rate_Hz * ms * 0.001f));
       }
       else _smooth = 1.0f;
     }

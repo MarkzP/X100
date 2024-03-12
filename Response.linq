@@ -1,4 +1,7 @@
-<Query Kind="Program" />
+<Query Kind="Program">
+  <Reference>&lt;RuntimeDirectory&gt;\System.Windows.Forms.DataVisualization.dll</Reference>
+  <Namespace>System.Drawing</Namespace>
+</Query>
 
 void Main()
 {
@@ -8,8 +11,8 @@ void Main()
 
 	if (1 == 1)
 	{
-		var amplitude = -0.615f;
-		bins = Enumerable.Range(20, 78).ToArray();
+		var amplitude = 0.0f;//-0.615f;
+		bins = Enumerable.Range(20, 80).ToArray();
 		freqs = bins.Select(i => logFreq(i)).ToArray();
 		levelIn = Enumerable.Range(0, bins.Length).Select(i => amplitude).ToArray();
 	}
@@ -24,47 +27,72 @@ void Main()
 		levelIn = bins.Select(i => ((i + 5) / 20) % 2 == 0 ? ampMin : ampMax).ToArray();
 	}
 	
-	
 	var levelOutsL = new float[levelIn.Length];
 	var levelOutsR = new float[levelIn.Length];
-	
-	
-	using (var port = new System.IO.Ports.SerialPort("COM10"))
-	{
-		port.Open();
-		port.ReadTimeout = 500;
-		
-		port.Write("setVolume(0);setInputMixer(0,0);");
-		
-		for (int i = 0; i < levelIn.Length && i < freqs.Length; i++)
-		{
-			if (i == 0)
-			{
-				levelOutsL[i] = -80.0f;
-				levelOutsR[i] = -80.0f;
-				continue;
-			}
-			
-			//Thread.Sleep(5);
-			var msg = $"doTestTone({freqs[i]},{dbToUnit(levelIn[i]).ToString(System.Globalization.CultureInfo.InvariantCulture)});";
-			port.Write(msg);
-			var resp = port.ReadLine();
-			var parts = resp.Replace("nan", "NaN").Split(',').Select(s => s.Trim());
-			levelOutsL[i] = unitToDb(float.Parse(parts.First(), System.Globalization.CultureInfo.InvariantCulture));
-			levelOutsR[i] = unitToDb(float.Parse(parts.Last(), System.Globalization.CultureInfo.InvariantCulture));
 
-			Console.WriteLine($"f={freqs[i]},i={dbToUnit(levelIn[i])} => {levelOutsL[i]}, {levelOutsR[i]}");
+	foreach (var testPort in System.IO.Ports.SerialPort.GetPortNames())
+	{
+		using (var port = new System.IO.Ports.SerialPort(testPort))
+		{
+			port.Open();
+			port.ReadTimeout = 500;
+			port.Write("stats();");
+			Thread.Sleep(20);
+			var report = port.ReadExisting();
+			if (report.Contains("Proc"))
+			{
+				port.Write("setVolume(0);setInputMixer(0,0);");
+				Thread.Sleep(20);
+				port.ReadExisting();
+
+				for (int i = 0; i < levelIn.Length && i < freqs.Length; i++)
+				{
+					if (i == 0)
+					{
+						levelOutsL[i] = -80.0f;
+						levelOutsR[i] = -80.0f;
+						continue;
+					}
+
+					//Thread.Sleep(5);
+					var msg = $"doTestTone({freqs[i]},{dbToUnit(levelIn[i]).ToString(System.Globalization.CultureInfo.InvariantCulture)});";
+					port.Write(msg);
+					var resp = port.ReadLine();
+					var parts = resp.Replace("nan", "NaN").Split(',').Select(s => s.Trim());
+					levelOutsL[i] = unitToDb(float.Parse(parts.First(), System.Globalization.CultureInfo.InvariantCulture));
+					levelOutsR[i] = unitToDb(float.Parse(parts.Last(), System.Globalization.CultureInfo.InvariantCulture));
+
+					Console.WriteLine($"f={freqs[i]},i={levelIn[i]} => {levelOutsL[i]}, {levelOutsR[i]}");
+				}
+
+				port.Write("setVolume(1);");
+			}
 		}
-		
-		port.Write("setVolume();setInputMixer();");
 	}
 
-	bins.Chart()
-		.AddYSeries(levelIn, Util.SeriesType.Line, "db In")
-		.AddYSeries(levelOutsL, Util.SeriesType.Line, "db L")
-		.AddYSeries(levelOutsR, Util.SeriesType.Line, "db R")
-		.AddYSeries(freqs, Util.SeriesType.Line, "Freq", true)
-		.Dump();
+	var chart = Enumerable.Range(10, bins.Length - 10).Chart(x => freqs[x])
+		.AddYSeries(x => levelOutsL[x], LINQPad.Util.SeriesType.Spline)
+		.AddYSeries(x => levelOutsR[x], LINQPad.Util.SeriesType.Spline)
+		.ToWindowsChart();
+		
+	var area = chart.ChartAreas.First();
+	var xaxis = area.AxisX;
+	xaxis.IsLogarithmic = true;
+	xaxis.MinorGrid.Enabled = true;
+	xaxis.MinorGrid.LineColor = Color.LightGray;
+	xaxis.Minimum = 100.0;
+
+	var yaxis = area.AxisY;
+	//yaxis.Minimum = levelOutsL.Skip(5).Min();
+	//yaxis.Maximum = 12.0;
+	yaxis.Minimum = -50.0;
+	yaxis.Maximum = 5.0;
+	yaxis.Interval = 5.0;
+	
+	area.AxisY2.Enabled = System.Windows.Forms.DataVisualization.Charting.AxisEnabled.False;
+	
+	chart.Dump();
+
 }
 
 // Define other methods and classes here

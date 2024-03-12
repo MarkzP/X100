@@ -1,5 +1,6 @@
 <Query Kind="Program">
   <Namespace>LINQPad.Controls</Namespace>
+  <Namespace>LINQPad.Controls.Core</Namespace>
 </Query>
 
 class SliderGroup
@@ -9,12 +10,28 @@ class SliderGroup
 		public string name { get; protected set; }
 		public Span span { get; protected set; }
 		public Control control { get; protected set; }
+		public SliderGroup group { get; protected set; }
+		
+		protected SliderDef(SliderGroup g)
+		{
+			group = g;
+		}
 		
 		public abstract void Reset();
 
 		public void Update()
 		{
 			span.Text = $"{name} {this}";
+		}
+
+		protected void queueValue(object sender, EventArgs e)
+		{
+			this.Update();
+			lock (queueLock)
+			{
+				sendQueue[$"{group.channel}.{this.name}"] = this.ToString();
+				sendTimer.Change(50, Timeout.Infinite);
+			}
 		}
 	}
 
@@ -24,87 +41,85 @@ class SliderGroup
 
 		RangeControl range;
 		int def;
+		float min;
+		float max;
+		float step;
+		
+		float stepToVal(int s) => min + ((float)s * step);
+		int valToStep(float v) => (int)Math.Round((v - min) / step);
 
-		public SliderFloat(SliderGroup group, string name, float min, float max, float def)
+		public SliderFloat(SliderGroup group, string name, float min, float max, float val, float def, float step): base(group)
 		{
 			base.name = name;
-			this.range = new RangeControl((int)(min * mult), (int)(max * mult), (int)(def * mult));
-			this.def = range.Value;
+			this.min = min;
+			this.max = max;
+			this.step = step;
+			
+			this.range = new RangeControl(valToStep(min), valToStep(max), valToStep(val));
+			this.def = valToStep(def);
 			this.range.Tag = this;
 			this.range.Width = "90%";
-			this.range.ValueInput += group.QueueValues;
+			this.range.ValueInput += queueValue;			
 
 			span = new Span($"{name} {this}");
 			control = range;
 		}
 
-		public override string ToString() => ((float)range.Value / mult).ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
+		public override string ToString() => stepToVal(range.Value).ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
 
 		public override void Reset()
 		{
+			range.ValueInput -= queueValue;	
 			range.Value = def;
 			Update();
+			range.ValueInput += queueValue;	
 		}
 	}
 
 	class SliderFreq : SliderDef
 	{
-		const int rmax = 1000;
-		const double flogscale = 10.0;
-		const double fscales = 3 - 0.3;
-		double exp;
+		private float[] fbands = { 50.0f,   56.0f,   63.0f,   71.0f,   80.0f,   89.0f,   100.0f,   112.0f,   125.0f,   140.0f,   158.0f,   175.0f,   200.0f,   225.0f,   250.0f,   280.0f,   315.0f,   400.0f,   440.0f,
+						 500.0f,  560.0f,  630.0f,  710.0f,  800.0f,  890.0f,  1000.0f,  1120.0f,  1250.0f,  1400.0f,  1580.0f,  1750.0f,  2000.0f,  2250.0f,  2500.0f,  2800.0f,  3150.0f,  4000.0f,  4400.0f,
+						 5000.0f, 5600.0f, 6300.0f, 7100.0f, 8000.0f, 8900.0f, 10000.0f, 11200.0f, 12500.0f, 14000.0f, 15800.0f, 17500.0f, 19000.0f
+					   };
+					   
+		private int freqToBand(float freq)
+		{
+			int band = 0;
+			for (; band < fbands.Length; band++)
+			{
+				if (fbands[band] >= freq) break;
+			}
+			return band;
+		}
+
+		private float bandToFreq(int band) => fbands[band];
 
 		RangeControl range;
 		int def;
 
-		public SliderFreq(SliderGroup group, string name, float min, float max, float def)
+		public SliderFreq(SliderGroup group, string name, float min, float max, float value, float def): base(group)
 		{
-			exp = Math.Pow(200, 0.0001);
-			
 			base.name = name;
-			this.range = new RangeControl(0, 10000, (int)Math.Round(Math.Log(0.75 + (def / 100.0), exp)));
+			this.range = new RangeControl(freqToBand(min), freqToBand(max), freqToBand(def));
 			this.def = range.Value;
+			this.range.Value = freqToBand(value);
 			this.range.Tag = this;
 			this.range.Width = "90%";
-			this.range.ValueInput += group.QueueValues;
+			this.range.ValueInput += queueValue;		
 
 			span = new Span($"{name} {this}");
 			control = range;
 		}
 
-		public override string ToString() => (25 * (int)(Math.Round(4.0 * Math.Pow(exp, (double)range.Value)) - 3)).ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
+		public override string ToString() => bandToFreq(range.Value).ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
 
 		public override void Reset()
 		{
+			range.ValueInput -= queueValue;
 			range.Value = def;
 			Update();
-		}
-	}
-
-	class SliderDbToUnit : SliderDef
-	{
-		RangeControl range;
-		int def;
-
-		public SliderDbToUnit(SliderGroup group, string name, float def)
-		{
-			base.name = name;
-			this.range = new RangeControl(-126, 0, (int)(6.02 * Math.Log(def, 2.0)));
-			this.def = range.Value;
-			this.range.Tag = this;
-			this.range.Width = "90%";
-			this.range.ValueInput += group.QueueValues;
-
-			span = new Span($"{name} {this}");
-			control = range;
-		}
-
-		public override string ToString() => (Math.Pow(2.0, (double)range.Value * 0.16612)).ToString("F6", System.Globalization.CultureInfo.InvariantCulture);
-
-		public override void Reset()
-		{
-			range.Value = def;
-			Update();
+			range.ValueInput += queueValue;
 		}
 	}
 
@@ -113,14 +128,14 @@ class SliderGroup
 		RangeControl range;
 		int def;
 
-		public SliderInt(SliderGroup group, string name, int min, int max, int def)
+		public SliderInt(SliderGroup group, string name, int min, int max, int val, int def): base(group)
 		{
 			base.name = name;
 			this.def = def;
-			this.range = new RangeControl(min, max, def);
+			this.range = new RangeControl(min, max, val);
 			this.range.Tag = this;
 			this.range.Width = "90%";
-			this.range.ValueInput += group.QueueValues;
+			this.range.ValueInput += queueValue;
 
 			span = new Span($"{name} {def}");
 			control = range;
@@ -130,17 +145,18 @@ class SliderGroup
 
 		public override void Reset()
 		{
+			range.ValueInput -= queueValue;
 			range.Value = def;
 			Update();
+			range.ValueInput += queueValue;
 		}
 	}
 
-	const string portName = "COM10";
+	static string portName = "COM5";
 	static Dictionary<string, string> sendQueue = new Dictionary<string, string>();
 	static object queueLock = new object();
 	static object portLock = new object();
 	static Timer sendTimer = new Timer(processQueue, null, Timeout.Infinite, Timeout.Infinite);
-	static Timer levelTimer = new Timer(getLevels, null, Timeout.Infinite, Timeout.Infinite);
 
 	static RangeControl leftOut = new RangeControl(-126, 0);
 	static RangeControl rightOut = new RangeControl(-126, 0);
@@ -182,71 +198,89 @@ class SliderGroup
 		catch {}			
 	}
 	
-	static void getLevels(object state)
+    enum ParameterType
+    {
+      PT_Float = 0,
+      PT_Bool,
+      PT_Freq,
+	  PT_Enum,
+	  PT_Coeff,
+	}
+
+	static readonly Dictionary<string, SliderGroup> Groups = new Dictionary<string, UserQuery.SliderGroup>();
+
+	
+
+	public static void Init()
 	{
-		try
+		foreach (var testPort in System.IO.Ports.SerialPort.GetPortNames())
 		{
-			lock (portLock)
+			using (var port = new System.IO.Ports.SerialPort(testPort))
 			{
-				using (var port = new System.IO.Ports.SerialPort(portName))
+				port.Open();
+				port.ReadTimeout = 15;
+				port.Write("dumpAll();");
+				Thread.Sleep(20);
+				var report = port.ReadExisting();
+				if (report.Contains("[") && report.Contains("]"))
 				{
-					port.Open();
-					port.ReadTimeout = 25;
-					port.ReadExisting();
-					port.Write("levelOut();");
+					SliderGroup group = null;
+					foreach (var line in report.Split('\n').Select(r => r.Trim()).Where(r => !string.IsNullOrWhiteSpace(r)))
+					{
+						//line.Dump();
 
-					var resp = string.Empty;
-					do { Thread.Sleep(25); resp = port.ReadExisting(); } while (string.IsNullOrEmpty(resp));
-					
-					var parts = resp.ToLower().Replace("nan", "-126.0").Replace("inf", "12.0").Split(',').Select(s => s.Trim());
-					var dbL = unitToDb(float.Parse(parts.First(), System.Globalization.CultureInfo.InvariantCulture) / 0.7071f);
-					var dbR = unitToDb(float.Parse(parts.Last(), System.Globalization.CultureInfo.InvariantCulture) / 0.7071f);
+						if (line.Contains("[") && line.Contains("]"))
+						{
+							if (group != null) group.Dump();
+							var groupName = line.TrimEnd(']').TrimStart('[');
+							group = new SliderGroup(groupName, groupName);
+							Groups[groupName] = group;
+							
+						}
+						else if (line.Contains("="))
+						{
+							var parts = line.Split('=');
+							var paramName = parts.First();
+							if (paramName.Contains("."))
+							{
+								var groupName = paramName.Split('.').First();
+								if (!Groups.TryGetValue(groupName, out group))
+								{
+									group = new SliderGroup(groupName, groupName);
+									Groups[groupName] = group;
+								}
+								paramName = paramName.Split('.').Skip(1).First();
+							}
+							
+							var paramParts = parts.Skip(1).First().TrimEnd(';', '\r', '\n', ' ').Split(',');
+							
+							var paramType = (ParameterType)int.Parse(paramParts.First());
+							var paramValues = paramParts.Skip(1).Select(p => float.Parse(p, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
 
-					leftSpan.Text = $"Left   {dbL}db";
-					rightSpan.Text = $"Right {dbR}db";
-					
-					leftOut.Value = (int)dbL;
-					rightOut.Value = (int)dbR;
+							switch (paramType)
+							{
+								case ParameterType.PT_Float:
+									group.AddFloatSlider(paramName, paramValues[2], paramValues[3], paramValues[0], paramValues[1], paramValues[4]);
+									break;
+								case ParameterType.PT_Coeff:
+									group.AddFloatSlider(paramName, paramValues[2], paramValues[3], paramValues[0], paramValues[1], paramValues[4]);
+									break;
+								case ParameterType.PT_Enum:
+								case ParameterType.PT_Bool:
+									group.AddIntSlider(paramName, (int)paramValues[2], (int)paramValues[3], (int)paramValues[0], (int)paramValues[1]);
+									break;
+								case ParameterType.PT_Freq:
+									group.AddFreqSlider(paramName, paramValues[0], paramValues[1], paramValues[2], paramValues[3]);
+									break;
+							}
+						}
+					}
+					if (group != null) group.Dump();
+					portName = testPort;
+					break;
 				}
 			}
 		}
-		catch { }
-
-	}
-	
-	public static void Init()
-	{
-		var metersSp = new StackPanel(false, ".1em");
-		metersSp.Horizontal = false;
-
-		pauseBtn.Click += (o, e) =>
-		{
-			if (pauseBtn.Text == "Pause")
-			{
-				pauseBtn.Text = "Resume";
-				levelTimer.Change(Timeout.Infinite, Timeout.Infinite);
-			}
-			else
-			{
-				pauseBtn.Text = "Pause";
-				levelTimer.Change(500, 500);
-			}
-		};
-		metersSp.Children.Add(pauseBtn);
-		
-		leftOut.Width = "90%";
-		leftOut.Enabled = false;
-		metersSp.Children.Add(leftSpan);
-		metersSp.Children.Add(leftOut);
-
-		rightOut.Width = "90%";
-		rightOut.Enabled = false;
-		metersSp.Children.Add(rightSpan);
-		metersSp.Children.Add(rightOut);
-
-		new FieldSet("Meters", metersSp).Dump();
-
-		//levelTimer.Change(100, 500);
 	}
 
 	string name;
@@ -257,21 +291,6 @@ class SliderGroup
 			.Where(o => o is Control c && c.Tag is SliderDef)
 			.Select(o => (o as Control).Tag as SliderDef);
 	
-	void QueueValues(object sender, EventArgs e)
-	{
-		var values = sliders
-				.Select(idf =>
-				{
-					idf.Update();
-					return idf.ToString();
-				});
-
-		lock (queueLock)
-		{
-			sendQueue[channel] = string.Join(",", values);
-			sendTimer.Change(50, Timeout.Infinite);
-		}
-	}
 	
 	public SliderGroup(string name, string channel = null, bool horizontal = false)
 	{
@@ -285,14 +304,24 @@ class SliderGroup
 			var resetBtn = new Button("Reset");
 			resetBtn.Click += (o, e) =>
 			{
-				var values = sliders.Select(s => { s.Reset(); return s.ToString(); });
+				sliders.ToList().ForEach(s => s.Reset());
 				lock (queueLock)
 				{
-					sendQueue[channel] = string.Join(",", values);
+					sendQueue[$"{channel}.reset"] = string.Empty;
 					sendTimer.Change(20, Timeout.Infinite);
 				}
 			};
 			sp.Children.Add(resetBtn);
+			
+			var printBtn = new Button("Print");
+			printBtn.Click += (o, e) =>
+			{
+				foreach(var slider in sliders)
+				{
+					$"{slider.name}.change({slider}f);".Dump();
+				}
+			};
+			sp.Children.Add(printBtn);
 		}
 		
 	}
@@ -315,51 +344,33 @@ class SliderGroup
 		return this;
 	}
 
-	public SliderGroup AddSlider(string name, float min, float max, float value)
+	public SliderGroup AddFloatSlider(string name, float min, float max, float value, float def, float step)
 	{
-		var def = new SliderFloat(this, name, min, max, value);
+		var slider = new SliderFloat(this, name, min, max, value, def, step);
 
-		sp.Children.Add(def.span);
-		sp.Children.Add(def.control);
+		sp.Children.Add(slider.span);
+		sp.Children.Add(slider.control);
 		return this;
 	}
 
-	public SliderGroup AddSlider(string name, int min, int max, int value)
+	public SliderGroup AddIntSlider(string name, int min, int max, int value, int def)
 	{
-		var def = new SliderInt(this, name, min, max, value);
+		var slider = new SliderInt(this, name, min, max, value, def);
 
-		sp.Children.Add(def.span);
-		sp.Children.Add(def.control);
+		sp.Children.Add(slider.span);
+		sp.Children.Add(slider.control);
 		return this;
 	}
 
-	public SliderGroup AddFreqSlider(string name, float value, float min = 20.0f, float max = 20000.0f)
+	public SliderGroup AddFreqSlider(string name, float value, float def, float min = 20.0f, float max = 20000.0f)
 	{
-		var def = new SliderFreq(this, name, min, max, value);
+		var slider = new SliderFreq(this, name, min, max, value, def);
 
-		sp.Children.Add(def.span);
-		sp.Children.Add(def.control);
-		return this;
-	}
-	
-	public SliderGroup AddDbToUnitSlider(string name, float value)
-	{
-		var def = new SliderDbToUnit(this, name, value);
-
-		sp.Children.Add(def.span);
-		sp.Children.Add(def.control);
+		sp.Children.Add(slider.span);
+		sp.Children.Add(slider.control);
 		return this;
 	}
 	
-	
-	public SliderGroup AddDbSlider(string name, float value, float min = -96.0f, float max = 96.0f) => AddSlider(name, min, max, value);
-	public SliderGroup AddEqSlider(float freq, float value, float min = -30.0f, float max = 15.0f) => AddSlider($"{freq} Hz", min, max, value);
-	public SliderGroup AddGainSlider(string name, float value, float min = 0.0f, float max = 1.0f) => AddSlider(name, min, max, value);
-	public SliderGroup AddQSlider(string name, float value = 0.7071f) => AddSlider(name, 0.5f, 2.5f, value);
-	public SliderGroup AddSlopeSlider(string name, float value) => AddSlider(name, 0.001f, 2.0f, value);
-	public SliderGroup AddTimeSlider(string name, float value, float max = 10.0f) => AddSlider(name, 0.0f, max, value);	
-	public SliderGroup AddWaveformSlider(string name, int value) => AddSlider(name, 0.0f, 1.0f, (float)value);
-		
 	public FieldSet Dump() => new FieldSet(name, sp).Dump();
 }
 
@@ -367,185 +378,4 @@ class SliderGroup
 void Main()
 {
 	SliderGroup.Init();
-
-	new SliderGroup("Test Noise", "testNoise")
-		.AddGainSlider("Amplitude", 0.0f)
-		.Dump();
-
-	new SliderGroup("Channel Presets", horizontal: true)
-		.AddButton("Default",
-			("setInputMixer", "1"),
-			("setPreampEq", "1"),
-			("setGate", "1"),
-			("setCompression", "1"),
-			("setMakeupGain", "6"),
-			("setLimiter", "1"),
-			("setAutoWah", "0"),
-			("setDistortion", "0"),
-			("setToneStack", "1"),
-			("setTremolo", "0"),
-			("setChorus", "1"),
-			("setReverb", "1"),
-			("setDelay", "0"),
-			("setCabSim", "1"),
-			("setVolume", "1")
-		)
-
-		.AddButton("Flat", 
-			("setPreampEq", "0"),
-			("setGate", "0"),
-			("setCompression", "0"),
-			("setMakeupGain", "0"),
-			("setLimiter", "0"),
-			("setAutoWah", "0"),
-			("setDistortion", "0"),
-			("setToneStack", "0"),
-			("setTremolo", "0"),
-			("setChorus", "0"),
-			("setReverb", "0"),
-			("setDelay", "0"),
-			("setCabSim", "0")
-		)
-		.Dump();
-		
-	new SliderGroup("Effects Presets", horizontal: true)
-		.AddButton("Compressor On", ("setCompressor", "1"))
-		.AddButton("Compressor Off", ("setCompressor", "0"))
-		.AddButton("Distortion On", ("setDistortion", "1"))
-		.AddButton("Distortion Off", ("setDistortion", "0"))
-		.AddButton("Chorus On", ("setChorus", "1"))
-		.AddButton("Chorus Off", ("setChorus", "0"))
-		.AddButton("Delay On", ("setDelay", "1"))
-		.AddButton("Delay Off", ("setDelay", "0"))
-		.AddButton("Reverb On", ("setReverb", "1"))
-		.AddButton("Reverb Off", ("setReverb", "0"))
-		.AddButton("Cab Sim On", ("setCabSim", "1"))
-		.AddButton("Cab Sim Off", ("setCabSim", "0"))
-		.Dump();
-
-		new SliderGroup("Input Mixer", "setInputMixer")
-				.AddGainSlider("Instrument", 1.0f, 0.0f, 2.0f)
-				.AddGainSlider("Microphone", 0.0f, 0.0f, 2.0f)
-				.Dump();
-
-		new SliderGroup("Preamp", "setPreampEq")
-				.AddSlider("Enable", 0, 1, 1)
-				.AddFreqSlider("Highpass freq", 100.0f)
-				.AddFreqSlider("Lowshelf freq", 1000.0f)
-				.AddDbSlider("Lowshelf gain", -6.0f)
-				.AddFreqSlider("LowPass freq", 8500.0f)
-				.AddQSlider("Low Pass Q")
-				.Dump();
-
-		new SliderGroup("Dynamics: Gate", "setGate")
-				.AddSlider("Enable", 0, 1, 1)
-				.AddDbSlider("Threshold", -75.0f, -126.0f, 0.0f)
-				.AddTimeSlider("Attack", 0.0001f)
-				.AddTimeSlider("Release", 3.0f)
-				.AddDbSlider("Attenuation", -14.0f, -126.0f, 0.0f)			
-				.Dump();
-
-		new SliderGroup("Dynamics: Compression", "setCompression")
-				.AddSlider("Enable", 0, 1, 1)
-				.AddDbSlider("Threshold", -50.0f, -126.0f, 0.0f)
-				.AddTimeSlider("Attack", 0.001f, 0.5f)
-				.AddTimeSlider("Release", 2.5f)
-				.AddSlider("Ratio", 1.0f, 20.0f, 1.5f)
-				.AddDbSlider("Manual Makeup Gain", 6.0f)
-				.Dump();
-
-		new SliderGroup("Dynamics: Limiter", "setLimiter")
-				.AddSlider("Enable", 0, 1, 1)
-				.AddDbSlider("Threshold", 0.0f, -126.0f, 0.0f)
-				.Dump();
-
-		new SliderGroup("VCF (Wah/Filter)", "setAutoWah")
-				.AddSlider("Enable", 0, 1, 0)
-				.AddSlider("Sensitivity", -50.0f, 50.0f, 9.0f)
-				.AddFreqSlider("Center Frequency", 250.0f)
-				.AddSlider("Resonance", 0.5f, 5.0f, 3.5f)
-				.Dump();
-
-		new SliderGroup("Distortion", "setDistortion")
-			.AddSlider("Enable", 0, 1, 0)
-			.AddSlider("Gain", 0.0f, 500.0f, 1.0f)
-			.AddGainSlider("Curve", 0.0f)
-			.AddGainSlider("Level", 1.0f)			
-			.Dump();
-
-		new SliderGroup("Tone Stack", "setToneStack")
-			.AddSlider("Enable", 0, 1, 1)
-			.AddDbSlider("Bass", 0.0f, -12.0f, 6.0f)
-			.AddDbSlider("Middle", 0.0f, -12.0f, 6.0f)
-			.AddDbSlider("Treble", 0.0f, -12.0f, 6.0f)
-			.AddFreqSlider("Lowpass freq", 8000.0f)
-			.Dump();
-
-		new SliderGroup("VCA (Tremolo)", "setTremolo")
-			.AddSlider("Enable", 0, 1, 0)
-			.AddSlider("Rate", 0.1f, 100.0f, 3.5f)
-			.AddGainSlider("Depth", 0.3f, 0.0f, 1.0f)
-			.Dump();
-
-		new SliderGroup("Chorus", "setChorus")
-			.AddSlider("Enable", 0, 1, 1)
-			.AddSlider("Rate", 0.2f, 8.0f, 1.7f)
-			.AddGainSlider("Depth", 0.032f, 0.0f, 0.5f)
-			.AddGainSlider("Mix", 0.6f)
-			.AddGainSlider("Resonance", 0.5f, 0.0f, 0.9f)
-			.AddSlider("Wave (triangle/sine)", 0, 1, 0)
-			.Dump();
-
-		new SliderGroup("Reverb", "setReverb")
-			.AddSlider("Enable", 0, 1, 1)
-			.AddSlider("Pre delay (msec)", 0.0f, 100.0f, 90.0f)
-			.AddSlider("Room size", 0.0f, 1.0f, 0.75f)
-			.AddSlider("Damping", 0.0f, 1.0f, 0.12f)
-			.AddGainSlider("Mix", 0.04f)
-			.Dump();
-
-		new SliderGroup("Delay", "setDelay")
-			.AddSlider("Enable", 0, 1, 0)
-			.AddSlider("Delay (msec)", 0.0f, 800.0f, 375.0f)
-			.AddGainSlider("Feedback", 0.25f)
-			.AddFreqSlider("Low Pass freq", 6500.0f)
-			.AddGainSlider("Mix", 0.05f)
-			.Dump();
-
-		new SliderGroup("Cab Simulator", "setCabSim")
-			.AddSlider("Enable", 0, 1, 1)
-			.AddFreqSlider("Scoop freq", 1300.0f)
-			.AddDbSlider("Scoop gain", -15.0f, -24.0f, 6.0f)
-			.Dump();
-			
-		new SliderGroup("Volume", "setVolume")
-			.AddGainSlider("Volume", 1.0f, 0.0f, 2.0f)
-			.Dump();
-
-/*
-	Environment.CurrentDirectory = @"C:\Users\T948384\Documents\Arduino\X100";
-	var mainInoLines = File.ReadAllLines("x100.ino").ToList();
-	var audioObjects = mainInoLines.Where(l => l.Contains("//xy=") && !l.Contains("AudioConnection"))
-							.Select(l => l.Split(' ').Where(c => !string.IsNullOrEmpty(c)).Skip(1).First().TrimEnd(';'))
-							.ToList();
-
-	var defaults = audioObjects.ToDictionary(o => o, o => mainInoLines.Where(l => l.Contains(o + ".")).Select(c => c.Trim().Substring(o.Length + 1))).Where(kvp => kvp.Value.Any()) ;
-	
-	
-	
-	var currentHandler = File.ReadAllLines("commandHandler.ino").ToList();
-	
-	SliderGroup sg = null;
-	foreach (var line in currentHandler)
-	{
-		if (line.Contains("strncmp"))
-		{
-			if (sg != null) sg.Dump();
-			
-			var function = line.Substring(line.IndexOf("strncmp")).Split('"')[1];
-			sg = new SliderGroup(function, function);
-		}
-	}
-	*/
-
 }

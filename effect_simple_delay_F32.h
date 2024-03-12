@@ -49,16 +49,12 @@ class AudioEffectSimpleDelay_F32 :
       int numsamp = (int)(ms * 0.001f * _sample_rate_Hz);
       if (numsamp > _delay_length - 1) numsamp = _delay_length - 1;
 
-      __disable_irq(); 
       _delay_samp = numsamp;
-      __enable_irq();      
     }
     
     virtual void update(void)
     {
         int _cb_delay_index;
-        int delay_length = _delay_length;
-        int delay_samp = _delay_samp;
 
         if (!_delayline) return;
 
@@ -68,9 +64,9 @@ class AudioEffectSimpleDelay_F32 :
 
         for (uint16_t i = 0; i < block->length; i++)
         {
-          if (_cb_index >= delay_length) _cb_index = 0;
-          _cb_delay_index = _cb_index - delay_samp;
-          if (_cb_delay_index < 0) _cb_delay_index += delay_length;
+          if (_cb_index >= _delay_length) _cb_index = 0;
+          _cb_delay_index = _cb_index - _delay_samp;
+          if (_cb_delay_index < 0) _cb_delay_index += _delay_length;
 
           _delayline[_cb_index] = block->data[i];
           block->data[i] = _delayline[_cb_delay_index];

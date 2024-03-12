@@ -22,11 +22,12 @@ class AudioEffectTremolo_F32 :
       _sample_rate_Hz = settings.sample_rate_Hz;
     }
 
-    void controlSmoothing(float time = 0.02f)
+    void smoothing(float ms = 20.0f)
     {
-      if (time > 0.0f) {
-        if (time > 10.0f) time = 10.0f;
-        _smooth = 1.0f - expf(-3.1699f / (_sample_rate_Hz * time));
+      if (ms > 0.0f)
+      {
+        if (ms > 10000.0f) ms = 10000.0f;
+        _smooth = 1.0f - expf(-3.1699f / (_sample_rate_Hz * ms * 0.001f));
       }
       else _smooth = 1.0f;
     }
