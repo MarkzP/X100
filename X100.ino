@@ -3,7 +3,6 @@
 #include "filter_state_variable_F32.h"
 #include "filter_tonestack_F32.h"
 #include "effect_phaser_F32.h"
-#include "hexefx_audio_F32.h"
 #include "effect_dynamics_F32.h"              // https://github.com/MarkzP/AudioEffectDynamics_F32
 #include "effect_modulated_delay_F32.h"       // https://github.com/MarkzP/ModulatedDelay_F32
 #include "effect_freeverb_F32.h"              // https://github.com/MarkzP/Freeverb_F32
@@ -21,64 +20,64 @@
 #include <SerialFlash.h>
 
 // GUItool: begin automatically generated code
-AudioInputI2S_F32        audioIn;        //xy=62,166
-AudioSynthWaveformSine_F32 testTone;       //xy=62,204
-AudioMixer4_F32          inputMixer;     //xy=228,179
-AudioAnalyzePeak_F32     levelIn;        //xy=367,224
-AudioFilterBiquad_F32    preampEq;       //xy=377,178
-AudioEffectDynamics_F32  dynamics;       //xy=520,185
-AudioSynthLfo_F32        filterLfo;      //xy=524,230
-AudioMixer4_F32          svModMixer;     //xy=659,237
-AudioFilterStateVariable_F32 svFilter;       //xy=796,210
-AudioMixer4_F32          filterMixer;    //xy=927,200
-AudioEffectNonLinear_F32 distortion;     //xy=1066.0000610351562,200
-AudioFilterToneStack_F32 toneStack; //xy=1213.0000305175781,200.00000190734863
-AudioSynthLfo_F32        tremoloLfo;     //xy=1348,245
-AudioEffectPhaser_F32    phaser;         //xy=1352.0000305175781,200.00000190734863
-AudioEffectTremolo_F32   tremoloVca;     //xy=1491.0000305175781,206.00000190734863
-AudioMixer4_F32          chorusInputL;   //xy=1775.0000305175781,122.00000190734863
-AudioSynthLfo_F32        chorusLfoL;     //xy=1780.0000305175781,175.00000190734863
-AudioMixer4_F32          chorusInputC;   //xy=1785.0000305175781,225.00000190734863
-AudioSynthLfo_F32        chorusLfoC;     //xy=1787.0000305175781,279.00000190734863
-AudioMixer4_F32          chorusInputR;   //xy=1791.0000305175781,336.00000190734863
-AudioSynthLfo_F32        chorusLfoR;     //xy=1798.0000305175781,390.00000190734863
-AudioEffectModulatedDelay_F32 chorusModDelayL; //xy=1952.0000305175781,129.00000190734863
-AudioEffectModulatedDelay_F32 chorusModDelayC; //xy=1963.0000305175781,232.00000190734863
-AudioEffectModulatedDelay_F32 chorusModDelayR; //xy=1975.0000305175781,343.00000190734863
-AudioFilterBiquad_F32    chorusPostFilterL; //xy=2149.000030517578,173.00000190734863
-AudioFilterBiquad_F32    chorusPostFilterR; //xy=2150.000030517578,379.00000190734863
-AudioFilterBiquad_F32    chorusPostFilterC; //xy=2156.000030517578,267.00000190734863
-AudioMixer4_F32          chorusMixerL;   //xy=2468.000030517578,205.00000190734863
-AudioMixer4_F32          chorusMixerR;   //xy=2482.000030517578,353.00000190734863
-AudioMixer4_F32          delayFeedbackL; //xy=2687.000030517578,242.00000190734863
-AudioMixer4_F32          delayFeedbackR; //xy=2688.000030517578,315.00000190734863
-AudioEffectSimpleDelay_F32 delayL;         //xy=2843,242
-AudioEffectSimpleDelay_F32 delayR;         //xy=2847,315
-AudioFilterBiquad_F32    delayFilterL;   //xy=2984,242
-AudioFilterBiquad_F32    delayFilterR;   //xy=2988,315
-AudioMixer4_F32          delayMixerL;    //xy=3156,224
-AudioMixer4_F32          delayMixerR;    //xy=3158,371
-//AudioEffectPlateReverb_F32 plateReverb;    //xy=3325,304
-AudioMixer4_F32          reverbMixerL;   //xy=3487,243
-AudioMixer4_F32          reverbMixerR;   //xy=3501,389
-AudioFilterBiquad_F32    cabSimL;        //xy=3633,243
-AudioFilterBiquad_F32    cabSimR;        //xy=3644.000030517578,389.00000190734863
-AudioMixer4_F32          roomMixer;      //xy=3787,323
-AudioFilterBiquad_F32    roomFilter;     //xy=3927,323
-AudioEffectFreeverbStereo_F32 roomReverb;     //xy=4071,323
-AudioEffectSimpleDelay_F32 roomDelayR;     //xy=4218,361
-AudioEffectSimpleDelay_F32 roomDelayL;     //xy=4219,288
-AudioMixer4_F32          cabSimMixerL;   //xy=4383,263
-AudioMixer4_F32          cabSimMixerR;   //xy=4388,406
-AudioConvert_F32toI16    toUSBR;         //xy=4553,363
-AudioConvert_F32toI16    toUSBL;         //xy=4554,316
-AudioAnalyzePeak_F32     levelOutR;      //xy=4554,429
-AudioConvert_I16toF32    fromUSBL;       //xy=4555,267
-AudioAnalyzePeak_F32     levelOutL;      //xy=4559,203
-AudioConvert_I16toF32    fromUSBR;       //xy=4560,483
-AudioMixer4_F32          outMixerL;      //xy=4700,269
-AudioMixer4_F32          outMixerR;      //xy=4709,464
-AudioOutputI2S_F32       audioOut;       //xy=4858.999969482422,364.99999809265137
+AudioInputI2S_F32        audioIn;        //xy=62.5,289
+AudioSynthWaveformSine_F32 testTone;       //xy=62.5,327
+AudioMixer4_F32          inputMixer;     //xy=228.5,302
+AudioAnalyzePeak_F32     levelIn;        //xy=367.5,347
+AudioFilterBiquad_F32    preampEq;       //xy=377.5,301
+AudioEffectDynamics_F32  dynamics;       //xy=520.5,308
+AudioSynthLfo_F32        filterLfo;      //xy=524.5,353
+AudioMixer4_F32          svModMixer;     //xy=659.5,360
+AudioFilterStateVariable_F32 svFilter;       //xy=796.5,333
+AudioMixer4_F32          filterMixer;    //xy=927.5,323
+AudioEffectNonLinear_F32 distortion;     //xy=1066.5,323
+AudioFilterToneStack_F32 toneStack;      //xy=1213.5,323
+AudioSynthLfo_F32        tremoloLfo;     //xy=1348.5,368
+AudioEffectPhaser_F32    phaser;         //xy=1352.5,323
+AudioEffectTremolo_F32   tremoloVca;     //xy=1491.5,329
+AudioMixer4_F32          chorusInputL;   //xy=1695.4999389648438,242.49998474121094
+AudioSynthLfo_F32        chorusLfoL;     //xy=1700.4999389648438,295.49998474121094
+AudioMixer4_F32          chorusInputC;   //xy=1705.4999389648438,345.49998474121094
+AudioSynthLfo_F32        chorusLfoC;     //xy=1707.4999389648438,399.49998474121094
+AudioMixer4_F32          chorusInputR;   //xy=1711.4999389648438,456.49998474121094
+AudioSynthLfo_F32        chorusLfoR;     //xy=1718.4999389648438,510.49998474121094
+AudioEffectModulatedDelay_F32 chorusModDelayL; //xy=1872.4999389648438,249.49998474121094
+AudioEffectModulatedDelay_F32 chorusModDelayC; //xy=1883.4999389648438,352.49998474121094
+AudioEffectModulatedDelay_F32 chorusModDelayR; //xy=1895.4999389648438,463.49998474121094
+AudioFilterBiquad_F32    chorusPostFilterL; //xy=2069.4999389648438,293.49998474121094
+AudioFilterBiquad_F32    chorusPostFilterR; //xy=2070.4999389648438,499.49998474121094
+AudioFilterBiquad_F32    chorusPostFilterC; //xy=2076.4999389648438,387.49998474121094
+AudioMixer4_F32          chorusMixerL;   //xy=2282.4999389648438,325.49998474121094
+AudioMixer4_F32          chorusMixerR;   //xy=2296.4999389648438,473.49998474121094
+AudioMixer4_F32          delayFeedbackL; //xy=2476.4999389648438,362.49998474121094
+AudioMixer4_F32          delayFeedbackR; //xy=2477.4999389648438,435.49998474121094
+AudioEffectSimpleDelay_F32 delayL;         //xy=2632.4999389648438,362.49998474121094
+AudioEffectSimpleDelay_F32 delayR;         //xy=2636.4999389648438,435.49998474121094
+AudioFilterBiquad_F32    delayFilterL;   //xy=2773.4999389648438,362.49998474121094
+AudioFilterBiquad_F32    delayFilterR;   //xy=2777.4999389648438,435.49998474121094
+AudioMixer4_F32          delayMixerL;    //xy=2926.4999389648438,344.49998474121094
+AudioMixer4_F32          delayMixerR;    //xy=2928.4999389648438,491.49998474121094
+AudioFilterBiquad_F32    reverbPre;      //xy=3085.500068664551,428.07141876220703
+AudioEffectFreeverbStereo_F32 reverb;         //xy=3210.500068664551,428.07141876220703
+AudioMixer4_F32          reverbMixerL;   //xy=3346.500068664551,362.07141876220703
+AudioMixer4_F32          reverbMixerR;   //xy=3349.500068664551,508.07141876220703
+AudioFilterBiquad_F32    cabSimL;        //xy=3492.500068664551,362.07141876220703
+AudioFilterBiquad_F32    cabSimR;        //xy=3492.500068664551,508.07141876220703
+AudioFilterBiquad_F32    roomFilter;     //xy=3641.500068664551,443.07141876220703
+AudioEffectFreeverbStereo_F32 roomReverb;     //xy=3785.500068664551,443.07141876220703
+AudioEffectSimpleDelay_F32 roomDelayR;     //xy=3932.500068664551,481.07141876220703
+AudioEffectSimpleDelay_F32 roomDelayL;     //xy=3933.500068664551,408.07141876220703
+AudioMixer4_F32          cabSimMixerL;   //xy=4097.500068664551,383.07141876220703
+AudioMixer4_F32          cabSimMixerR;   //xy=4102.500068664551,526.071418762207
+AudioConvert_F32toI16    toUSBR;         //xy=4267.500068664551,483.07141876220703
+AudioConvert_F32toI16    toUSBL;         //xy=4268.500068664551,436.07141876220703
+AudioAnalyzePeak_F32     levelOutR;      //xy=4268.500068664551,549.071418762207
+AudioConvert_I16toF32    fromUSBL;       //xy=4269.500068664551,387.07141876220703
+AudioAnalyzePeak_F32     levelOutL;      //xy=4273.500068664551,323.07141876220703
+AudioConvert_I16toF32    fromUSBR;       //xy=4274.500068664551,603.071418762207
+AudioMixer4_F32          outMixerL;      //xy=4414.500068664551,389.07141876220703
+AudioMixer4_F32          outMixerR;      //xy=4423.500068664551,584.071418762207
+AudioOutputI2S_F32       audioOut;       //xy=4572.500068664551,484.07141876220703
 AudioConnection_F32          patchCord1(audioIn, 0, inputMixer, 0);
 AudioConnection_F32          patchCord2(audioIn, 1, inputMixer, 1);
 AudioConnection_F32          patchCord3(testTone, 0, inputMixer, 2);
@@ -138,35 +137,32 @@ AudioConnection_F32          patchCord56(delayFilterR, 0, delayMixerR, 1);
 AudioConnection_F32          patchCord57(delayFilterR, 0, delayFeedbackR, 1);
 AudioConnection_F32          patchCord58(delayFilterR, 0, delayFeedbackL, 2);
 AudioConnection_F32          patchCord59(delayMixerL, 0, reverbMixerL, 0);
-//AudioConnection_F32          patchCord60(delayMixerL, 0, plateReverb, 0);
+AudioConnection_F32          patchCord60(delayMixerL, reverbPre);
 AudioConnection_F32          patchCord61(delayMixerR, 0, reverbMixerR, 0);
-//AudioConnection_F32          patchCord62(delayMixerR, 0, plateReverb, 1);
-//AudioConnection_F32          patchCord63(plateReverb, 0, reverbMixerL, 1);
-//AudioConnection_F32          patchCord64(plateReverb, 1, reverbMixerR, 1);
+AudioConnection_F32          patchCord62(reverbPre, reverb);
+AudioConnection_F32          patchCord63(reverb, 0, reverbMixerL, 1);
+AudioConnection_F32          patchCord64(reverb, 1, reverbMixerR, 1);
 AudioConnection_F32          patchCord65(reverbMixerL, cabSimL);
 AudioConnection_F32          patchCord66(reverbMixerR, cabSimR);
 AudioConnection_F32          patchCord67(cabSimL, 0, cabSimMixerL, 0);
-AudioConnection_F32          patchCord68(cabSimL, 0, roomMixer, 0);
+AudioConnection_F32          patchCord68(cabSimL, roomFilter);
 AudioConnection_F32          patchCord69(cabSimR, 0, cabSimMixerR, 0);
-AudioConnection_F32          patchCord70(cabSimR, 0, roomMixer, 1);
-AudioConnection_F32          patchCord71(roomMixer, roomFilter);
-AudioConnection_F32          patchCord72(roomFilter, roomReverb);
-AudioConnection_F32          patchCord73(roomReverb, 0, roomDelayL, 0);
-AudioConnection_F32          patchCord74(roomReverb, 1, roomDelayR, 0);
-AudioConnection_F32          patchCord75(roomDelayR, 0, cabSimMixerR, 1);
-AudioConnection_F32          patchCord76(roomDelayL, 0, cabSimMixerL, 1);
-AudioConnection_F32          patchCord77(cabSimMixerL, levelOutL);
-AudioConnection_F32          patchCord78(cabSimMixerL, toUSBL);
-AudioConnection_F32          patchCord79(cabSimMixerL, 0, outMixerL, 0);
-AudioConnection_F32          patchCord80(cabSimMixerR, levelOutR);
-AudioConnection_F32          patchCord81(cabSimMixerR, toUSBR);
-AudioConnection_F32          patchCord82(cabSimMixerR, 0, outMixerR, 0);
-AudioConnection_F32          patchCord83(fromUSBL, 0, outMixerL, 1);
-AudioConnection_F32          patchCord84(fromUSBR, 0, outMixerR, 1);
-AudioConnection_F32          patchCord85(outMixerL, 0, audioOut, 0);
-AudioConnection_F32          patchCord86(outMixerR, 0, audioOut, 1);
+AudioConnection_F32          patchCord70(roomFilter, roomReverb);
+AudioConnection_F32          patchCord71(roomReverb, 0, roomDelayL, 0);
+AudioConnection_F32          patchCord72(roomReverb, 1, roomDelayR, 0);
+AudioConnection_F32          patchCord73(roomDelayR, 0, cabSimMixerR, 1);
+AudioConnection_F32          patchCord74(roomDelayL, 0, cabSimMixerL, 1);
+AudioConnection_F32          patchCord75(cabSimMixerL, levelOutL);
+AudioConnection_F32          patchCord76(cabSimMixerL, toUSBL);
+AudioConnection_F32          patchCord77(cabSimMixerL, 0, outMixerL, 0);
+AudioConnection_F32          patchCord78(cabSimMixerR, levelOutR);
+AudioConnection_F32          patchCord79(cabSimMixerR, toUSBR);
+AudioConnection_F32          patchCord80(cabSimMixerR, 0, outMixerR, 0);
+AudioConnection_F32          patchCord81(fromUSBL, 0, outMixerL, 1);
+AudioConnection_F32          patchCord82(fromUSBR, 0, outMixerR, 1);
+AudioConnection_F32          patchCord83(outMixerL, 0, audioOut, 0);
+AudioConnection_F32          patchCord84(outMixerR, 0, audioOut, 1);
 // GUItool: end automatically generated code
-
 
 
 /**********************************************************************************************************************/
@@ -326,7 +322,6 @@ void setup()
   muteMixer(delayMixerR);
   muteMixer(reverbMixerL);
   muteMixer(reverbMixerR);
-  muteMixer(roomMixer);  
   muteMixer(cabSimMixerL);
   muteMixer(cabSimMixerL);
   muteMixer(outMixerL);

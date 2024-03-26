@@ -770,25 +770,23 @@ EFFECT(chorus)
 
 EPARAMS(reverb)
 {
-  Parameter("size", Parameter::PT_Float, 0.4f),
-  Parameter("lo_damp", Parameter::PT_Float, 0.3f),
-  Parameter("hi_damp", Parameter::PT_Float, 0.1f),
-  Parameter("wet", Parameter::PT_Float, 0.13f),
-  Parameter("dry", Parameter::PT_Float, 0.9f),
-  Parameter("lp", Parameter::PT_Float, 0.8f),
-  Parameter("diffusion", Parameter::PT_Float, 0.65f),
-  Parameter("enable", Parameter::PT_Bool, true),
+  Parameter("size", Parameter::PT_Float, 0.9f),
+  Parameter("damp", Parameter::PT_Float, 0.2f),
+  Parameter("wet", Parameter::PT_Float, 0.08f),
+  Parameter("dry", Parameter::PT_Float, 0.92f),
+  Parameter("hp_f", Parameter::PT_Coeff, 500.0f, 50.0f, 800.0f, 10.0f),
+  Parameter("lp_f", Parameter::PT_Coeff, 13000.0f, 4000.0f, 13000.0f, 250.0f),
+  Parameter("enable", Parameter::PT_Bool, false),
 };
 EFFECT(reverb)
 {
   int i = 0;
   Parameter& size = e[i++];
-  Parameter& lo_damp = e[i++];
-  Parameter& hi_damp = e[i++];
+  Parameter& damp = e[i++];
   Parameter& wet = e[i++];
   Parameter& dry = e[i++];
-  Parameter& lp = e[i++];
-  Parameter& diffusion = e[i++];
+  Parameter& hp_f = e[i++];
+  Parameter& lp_f = e[i++];
   Parameter& enable = e[i++];
 
   bool enableChanged = enable.changed();
@@ -803,13 +801,16 @@ EFFECT(reverb)
       reverbMixerR.gain(1, wet);
     }
 
-/*
-    if (enableChanged || size.changed()) plateReverb.size(size);
-    if (enableChanged || lo_damp.changed()) plateReverb.lodamp(lo_damp);
-    if (enableChanged || hi_damp.changed()) plateReverb.hidamp(hi_damp);
-    if (enableChanged || lp.changed()) plateReverb.lowpass(lp);
-    if (enableChanged || diffusion.changed()) plateReverb.diffusion(diffusion);
-    */
+    if (enableChanged || hp_f.changed() || lp_f.changed())
+    {
+      reverbPre.doClassInit();
+      reverbPre.setHighpass(0, hp_f, 0.7071f);
+      reverbPre.setLowpass(1, lp_f, 0.7071f);
+      reverbPre.begin();      
+    }
+
+    if (enableChanged || size.changed()) reverb.roomsize(size);
+    if (enableChanged || damp.changed()) reverb.damping(damp);
   }
   else
   {
@@ -1024,9 +1025,6 @@ EFFECT(cab_sim)
   {
     if (enableChanged)
     {
-      roomMixer.gain(0, 0.8f);
-      roomMixer.gain(1, 0.2f);
-  
       roomFilter.doClassInit();
       roomFilter.setHighpass(0, 350.0f, 0.7071f);
       roomFilter.setLowpass(1, 12000.0f, 0.7071f);
@@ -1252,6 +1250,13 @@ class IBindable
       int i = 0;
       int p = 0;
       int len = strnlen(bname, 64);
+      if (len == 0)
+      {
+        _effect = nullptr;
+        _param = nullptr;
+        return true;
+      }
+      
       for (; i < len; i++)
       {
         if (bname[i] == '.' || bname[i] == 0) break;
@@ -1680,7 +1685,7 @@ void UI_Setup()
 
   IBindable::bind("button0", "compression.enable");
   IBindable::bind("button1", "distortion.enable");
-  IBindable::bind("button2", "reverb.enable");
+  IBindable::bind("button2", "chorus.enable");
   IBindable::bind("button3", "delay.enable");
 
   IBindable::bind("pot0", "distortion.bass");

@@ -222,7 +222,7 @@ class SliderGroup
 				port.Write("dumpAll();");
 				Thread.Sleep(20);
 				var report = port.ReadExisting();
-				if (report.Contains("[") && report.Contains("]"))
+				if (report.Contains("[") && report.Contains("]") && !report.Contains("error"))
 				{
 					SliderGroup group = null;
 					foreach (var line in report.Split('\n').Select(r => r.Trim()).Where(r => !string.IsNullOrWhiteSpace(r)))
