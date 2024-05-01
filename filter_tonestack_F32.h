@@ -44,9 +44,9 @@ template <int N>
 class _AudioFilterTDF2
 {
 public:
-  float32_t a[N + 1];
-  float32_t b[N + 1];
-  float32_t h[N + 1];
+  float a[N + 1];
+  float b[N + 1];
+  float h[N + 1];
 
   void reset()
   {
@@ -67,12 +67,12 @@ public:
     b[0] = 1;
   }
 
-  void process(float32_t *src, float32_t *dst, uint32_t blockSize)
+  void process(float *src, float *dst, uint32_t blockSize)
   {
     for (uint16_t i = 0; i<blockSize; i++)
     {
-      float32_t in = *src++;
-      float32_t y = h[0] + b[0] * in;
+      float in = *src++;
+      float y = h[0] + b[0] * in;
 
       for (uint16_t j = 1; j < N; ++j)
         h[j - 1] = h[j] + b[j] * in- a[j] * y;
@@ -88,6 +88,7 @@ class AudioFilterToneStack_F32 : public AudioStream_F32
 {
 public:
 	AudioFilterToneStack_F32();
+  AudioFilterToneStack_F32(const AudioSettings_F32 &settings);
 	~AudioFilterToneStack_F32(){};
 	virtual void update(void);
 
@@ -98,24 +99,27 @@ public:
 	 * @param m middle setting
 	 * @param t treble setting
 	 */
-	void setTone(float32_t b, float32_t m, float32_t t)
-	{
+	void setTone(float b, float m, float t)
+	{  
 		b = constrain(b, 0.0f, 1.0f); bass = b;
 		m = constrain(m, 0.0f, 1.0f); mid = m;
 		t = constrain(t, 0.0f, 1.0f); treble = t;
-		struct
-		{
-			float32_t a1, a2, a3;
-			float32_t b1, b2, b3;
-		} acoef; // analog coefficients
-
-		// digital coefficients
-		float32_t dcoef_a[4];
-		float32_t dcoef_b[4];
 
     if (b < 0.5f) b *= 0.2f;
     else b = b * 1.8f - 0.8f;
-    
+
+    float comp = 0.45f + (powf(1.75f, 1.0f - t) * 0.55f) + (powf(1.75f, 1.0f - m) * 0.25f);
+		
+		struct
+		{
+			float a1, a2, a3;
+			float b1, b2, b3;
+		} acoef; // analog coefficients
+
+		// digital coefficients
+		float dcoef_a[4];
+		float dcoef_b[4];
+
 		acoef.a1 = a1d + m * a1m + b * a1l;
 		acoef.a2 = m * a2m + b * m * a2lm + m * m * a2m2 + b * a2l + a2d;
 		acoef.a3 = b * m * a3lm + m * m * a3m2 + m * a3m + b * a3l + a3d;
@@ -141,29 +145,25 @@ public:
 		{
 			filter.b[i] = dcoef_b[i] / dcoef_a[0];
 		}
+    gain = comp;
 		 __enable_irq();
 	}
-	
-	/**
-	 * @brief Master volume setting
-	 * 
-	 * @param g gain value
-	 */
-	void setGain(float32_t g) {	gain = g;}
 
+ void enable(bool en) { bp = !en; }
+	
 private:
+  void init(float sample_rate);
+
 	static const uint8_t order = 3;
 	_AudioFilterTDF2<order> filter;
 	audio_block_f32_t *inputQueueArray_f32[1];
 	bool bp = false;		// bypass
-	uint8_t currentModel;
-	float32_t c = 2.0f * AUDIO_SAMPLE_RATE_EXACT;
-	float32_t b1t, b1m, b1l, b1d,
+	float b1t, b1m, b1l, b1d,
 		b2t, b2m2, b2m, b2l, b2lm, b2d,
 		b3lm, b3m2, b3m, b3t, b3tm, b3tl,
 		a0, a1d, a1m, a1l, a2m, a2lm, a2m2, a2l, a2d,
 		a3lm, a3m2, a3m, a3l, a3d; // intermediate calculations
-	float32_t bass, mid, treble, gain;
+	float bass, mid, treble, c, gain;
 };
 
 #endif // _FILTER_TONESTACK_F32_H_

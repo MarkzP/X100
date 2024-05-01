@@ -105,7 +105,14 @@ class Parameter
       _value = round(_value * 100.0f) * 0.01f;
 
       return _value != _lastval;
-   }
+    }
+
+    bool midiChange(int i)
+    {
+      // Map 13 -> 113 to 0 - 100
+      i = i < 13 ? 0 : i > 113 ? 100 : i - 13;
+      return scaledChange((float)i / 100.0f);
+    }
 
     bool change(float value)
     {
@@ -130,6 +137,8 @@ class Parameter
 
       if (_value > _max) _value = _max;
       if (_value < _min) _value = _min;
+
+      _value = round(_value * 100.0f) * 0.01f;
 
       return _value != _lastval;
     }

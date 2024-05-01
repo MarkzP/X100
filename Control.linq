@@ -217,68 +217,95 @@ class SliderGroup
 		{
 			using (var port = new System.IO.Ports.SerialPort(testPort))
 			{
-				port.Open();
-				port.ReadTimeout = 15;
-				port.Write("dumpAll();");
+				try
+				{
+					port.Open();
+				}
+				catch (IOException)
+				{
+					continue;
+				}
+				catch (UnauthorizedAccessException)
+				{
+					continue;
+				}			
+				
+				port.ReadTimeout = 500;
+				port.Write("stats();");
 				Thread.Sleep(20);
 				var report = port.ReadExisting();
-				if (report.Contains("[") && report.Contains("]") && !report.Contains("error"))
+				if (!report.Contains("Proc")) continue;
+				
+				port.Write("listPresets();");
+				Thread.Sleep(20);
+				report = port.ReadExisting();
+				SliderGroup presets = null;
+				foreach (var line in report.Split('\n').Select(r => r.Trim()).Where(r => !string.IsNullOrWhiteSpace(r) && !r.EndsWith(".bak") && !r.StartsWith("System")))
 				{
-					SliderGroup group = null;
-					foreach (var line in report.Split('\n').Select(r => r.Trim()).Where(r => !string.IsNullOrWhiteSpace(r)))
+					if (presets == null) presets = new SliderGroup("Presets");
+					presets.AddButton(line, ("loadPreset", $"\"{line}\""));
+				}
+				if (presets != null) presets.Dump();
+				//break;
+				
+				port.Write("dumpAll();");
+				Thread.Sleep(20);
+				report = port.ReadExisting();
+				
+				SliderGroup group = null;
+				foreach (var line in report.Split('\n').Select(r => r.Trim()).Where(r => !string.IsNullOrWhiteSpace(r)))
+				{
+					//line.Dump();
+
+					if (line.Contains("[") && line.Contains("]"))
 					{
-						//line.Dump();
-
-						if (line.Contains("[") && line.Contains("]"))
+						if (group != null) group.Dump();
+						var groupName = line.TrimEnd(']').TrimStart('[');
+						group = new SliderGroup(groupName, groupName);
+						Groups[groupName] = group;
+						
+					}
+					else if (line.Contains("="))
+					{
+						var parts = line.Split('=');
+						var paramName = parts.First();
+						if (paramName.Contains("."))
 						{
-							if (group != null) group.Dump();
-							var groupName = line.TrimEnd(']').TrimStart('[');
-							group = new SliderGroup(groupName, groupName);
-							Groups[groupName] = group;
-							
+							var groupName = paramName.Split('.').First();
+							if (!Groups.TryGetValue(groupName, out group))
+							{
+								group = new SliderGroup(groupName, groupName);
+								Groups[groupName] = group;
+							}
+							paramName = paramName.Split('.').Skip(1).First();
 						}
-						else if (line.Contains("="))
-						{
-							var parts = line.Split('=');
-							var paramName = parts.First();
-							if (paramName.Contains("."))
-							{
-								var groupName = paramName.Split('.').First();
-								if (!Groups.TryGetValue(groupName, out group))
-								{
-									group = new SliderGroup(groupName, groupName);
-									Groups[groupName] = group;
-								}
-								paramName = paramName.Split('.').Skip(1).First();
-							}
-							
-							var paramParts = parts.Skip(1).First().TrimEnd(';', '\r', '\n', ' ').Split(',');
-							
-							var paramType = (ParameterType)int.Parse(paramParts.First());
-							var paramValues = paramParts.Skip(1).Select(p => float.Parse(p, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+						
+						var paramParts = parts.Skip(1).First().TrimEnd(';', '\r', '\n', ' ').Split(',');
+						
+						var paramType = (ParameterType)int.Parse(paramParts.First());
+						var paramValues = paramParts.Skip(1).Select(p => float.Parse(p, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
 
-							switch (paramType)
-							{
-								case ParameterType.PT_Float:
-									group.AddFloatSlider(paramName, paramValues[2], paramValues[3], paramValues[0], paramValues[1], paramValues[4]);
-									break;
-								case ParameterType.PT_Coeff:
-									group.AddFloatSlider(paramName, paramValues[2], paramValues[3], paramValues[0], paramValues[1], paramValues[4]);
-									break;
-								case ParameterType.PT_Enum:
-								case ParameterType.PT_Bool:
-									group.AddIntSlider(paramName, (int)paramValues[2], (int)paramValues[3], (int)paramValues[0], (int)paramValues[1]);
-									break;
-								case ParameterType.PT_Freq:
-									group.AddFreqSlider(paramName, paramValues[0], paramValues[1], paramValues[2], paramValues[3]);
-									break;
-							}
+						switch (paramType)
+						{
+							case ParameterType.PT_Float:
+								group.AddFloatSlider(paramName, paramValues[2], paramValues[3], paramValues[0], paramValues[1], paramValues[4]);
+								break;
+							case ParameterType.PT_Coeff:
+								group.AddFloatSlider(paramName, paramValues[2], paramValues[3], paramValues[0], paramValues[1], paramValues[4]);
+								break;
+							case ParameterType.PT_Enum:
+							case ParameterType.PT_Bool:
+								group.AddIntSlider(paramName, (int)paramValues[2], (int)paramValues[3], (int)paramValues[0], (int)paramValues[1]);
+								break;
+							case ParameterType.PT_Freq:
+								group.AddFreqSlider(paramName, paramValues[0], paramValues[1], paramValues[2], paramValues[3]);
+								break;
 						}
 					}
-					if (group != null) group.Dump();
-					portName = testPort;
-					break;
 				}
+				if (group != null) group.Dump();
+				portName = testPort;
+				break;
 			}
 		}
 	}

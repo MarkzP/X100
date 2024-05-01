@@ -31,11 +31,10 @@
 */
 #include "filter_tonestack_F32.h"
 
-
-AudioFilterToneStack_F32 :: AudioFilterToneStack_F32() : AudioStream_F32(1, inputQueueArray_f32)
+void AudioFilterToneStack_F32::init(float sample_rate)
 {
-	gain = 1.0f;
-	bp = false;
+  c = 2.0f * sample_rate;
+  bp = false;
 
 #define k *1e3
 #define M *1e6
@@ -43,22 +42,22 @@ AudioFilterToneStack_F32 :: AudioFilterToneStack_F32() : AudioStream_F32(1, inpu
 #define pF *1e-12
 
 /*
-  float32_t R1 = 220 k;
-  float32_t R2 = 1 M;
-  float32_t R3 = 25 k;
-  float32_t R4 = 33 k;
-  float32_t C1 = 470 pF;
-  float32_t C2 = 22 nF;
-  float32_t C3 = 22 nF;
+  float R1 = 220 k;
+  float R2 = 1 M;
+  float R3 = 25 k;
+  float R4 = 33 k;
+  float C1 = 470 pF;
+  float C2 = 22 nF;
+  float C3 = 22 nF;
 */
 
-  float32_t R1 = 200 k;   // RT
-  float32_t R2 = 820 k;   // RB
-  float32_t R3 = 22 k;    // RM
-  float32_t R4 = 27 k;    // R1
-  float32_t C1 = 400 pF;  // 
-  float32_t C2 = 18 nF;
-  float32_t C3 = 22 nF;
+  float R1 = 200 k;   // RT
+  float R2 = 820 k;   // RB
+  float R3 = 22 k;    // RM
+  float R4 = 27 k;    // R1
+  float C1 = 400 pF;  // 
+  float C2 = 18 nF;
+  float C3 = 22 nF;
   
 #undef k
 #undef M
@@ -96,7 +95,17 @@ AudioFilterToneStack_F32 :: AudioFilterToneStack_F32() : AudioStream_F32(1, inpu
   a3l = C1 * C2 * C3 * R1 * R2 * R4;
   a3d = C1 * C2 * C3 * R1 * R3 * R4;
 
-  filter.reset();
+  filter.reset();  
+}
+
+AudioFilterToneStack_F32 :: AudioFilterToneStack_F32() : AudioStream_F32(1, inputQueueArray_f32)
+{
+  init(AUDIO_SAMPLE_RATE_EXACT);
+}
+
+AudioFilterToneStack_F32 :: AudioFilterToneStack_F32(const AudioSettings_F32 &settings) : AudioStream_F32(1, inputQueueArray_f32)
+{
+  init(settings.sample_rate_Hz);
 }
 
 void AudioFilterToneStack_F32::update()
@@ -110,10 +119,7 @@ void AudioFilterToneStack_F32::update()
   if (!bp)
   {
     filter.process(block->data, block->data, block->length);
-    if (gain != 1.0f)
-    {
-      arm_scale_f32(block->data, gain, block->data, block->length);
-    }    
+    arm_scale_f32(block->data, gain, block->data, block->length);
   }
 
   AudioStream_F32::transmit(block, 0);

@@ -120,7 +120,7 @@ void loadPreset(const char* fname)
     while (f.available()) handleChar((char)f.read());
     f.close();      
   }
-  else Serial.printf("File %s not found\r\n", fname);
+  else if (debug) Serial.printf("File %s not found\r\n", fname);
 }
 
 void listPresets()
