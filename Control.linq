@@ -190,8 +190,13 @@ class SliderGroup
 					port.Open();
 					port.ReadTimeout = 15;
 					port.Write(msgs);
-					Thread.Sleep(10);
-					port.ReadExisting();
+					string rsp = null;
+					//do
+					//{
+						Thread.Sleep(100);
+						rsp = port.ReadExisting();
+						if (!string.IsNullOrEmpty(rsp)) rsp.Dump();
+					//} while (!string.IsNullOrEmpty(rsp));
 				}
 			}
 		}
@@ -236,13 +241,37 @@ class SliderGroup
 				var report = port.ReadExisting();
 				if (!report.Contains("Proc")) continue;
 				
+				SliderGroup actions = new SliderGroup("Actions", null, true);
+				actions.AddButton("printLevels(1);", ("printLevels", "1"));
+				actions.AddButton("printLevels(0);", ("printLevels", "0"));
+				actions.Dump();
+				
+				
+				SliderGroup tones = new SliderGroup("Tones", null, true);
+				tones.AddButton("Mute", ("tone", "1000,0"));
+				tones.AddButton("50", ("tone", "53,1"));
+				tones.AddButton("100", ("tone", "103,1"));
+				tones.AddButton("300", ("tone", "303,1"));
+				tones.AddButton("500", ("tone", "503,1"));
+				tones.AddButton("1.0k", ("tone", "1003,1"));
+				tones.AddButton("2.0k", ("tone", "2003,1"));
+				tones.AddButton("3.0k", ("tone", "3003,1"));
+				tones.AddButton("4.9k", ("tone", "4905,1"));
+				tones.AddButton("5.0k", ("tone", "5003,1"));
+				tones.AddButton("5.1k", ("tone", "5103,1"));
+				tones.AddButton("5.5k", ("tone", "5503,1"));
+				tones.AddButton("10k", ("tone", "10003,1"));
+				tones.AddButton("15k", ("tone", "15003,1"));
+				
+				tones.Dump();
+				
 				port.Write("listPresets();");
 				Thread.Sleep(20);
 				report = port.ReadExisting();
 				SliderGroup presets = null;
 				foreach (var line in report.Split('\n').Select(r => r.Trim()).Where(r => !string.IsNullOrWhiteSpace(r) && !r.EndsWith(".bak") && !r.StartsWith("System")))
 				{
-					if (presets == null) presets = new SliderGroup("Presets");
+					if (presets == null) presets = new SliderGroup("Presets", null, true);
 					presets.AddButton(line, ("loadPreset", $"\"{line}\""));
 				}
 				if (presets != null) presets.Dump();

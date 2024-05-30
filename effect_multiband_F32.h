@@ -1,5 +1,5 @@
-#ifndef effect_multiband_F32_h_
-#define effect_multiband_F32_h_
+#ifndef _effect_multiband_F32_h_
+#define _effect_multiband_F32_h_
 
 #include "OpenAudio_ArduinoLibrary.h"
 #include "AudioStream_F32.h"
@@ -67,13 +67,11 @@ class AudioEffectMultiband_F32 :
 
     AudioEffectMultiband_F32(void): AudioStream_F32(2, inputQueueArray)
     {
-      _sample_rate_Hz = AUDIO_SAMPLE_RATE_EXACT;
       parameters();
     }
 
     AudioEffectMultiband_F32(const AudioSettings_F32 &settings): AudioStream_F32(2, inputQueueArray)
     {
-      _sample_rate_Hz = settings.sample_rate_Hz;
       parameters();
     }  
     
@@ -148,8 +146,6 @@ class AudioEffectMultiband_F32 :
     
   private:
     audio_block_f32_t *inputQueueArray[2];
-    float _sample_rate_Hz;
-
     float gain1, driv1, att1, rel1, trim1;
     float gain2, driv2, att2, rel2, trim2;
     float gain3, driv3, att3, rel3, trim3;

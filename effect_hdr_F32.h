@@ -1,14 +1,16 @@
-#ifndef effect_hdr_F32_h_
-#define effect_hdr_F32_h_
+#ifndef _effect_hdr_F32_h_
+#define _effect_hdr_F32_h_
 
 #include "OpenAudio_ArduinoLibrary.h"
 #include "AudioStream_F32.h"
 
+#include "components_F32.h"
+
 class AudioEffectHDR_F32 :
   public AudioStream_F32
 {
-//GUI: inputs:2, outputs:1  //this line used for automatic generation of GUI node
-//GUI: shortName:hdr  
+    //GUI: inputs:2, outputs:1  //this line used for automatic generation of GUI node
+    //GUI: shortName:hdr
   public:
     AudioEffectHDR_F32(void):
       AudioStream_F32(2, inputQueueArray)
@@ -20,72 +22,70 @@ class AudioEffectHDR_F32 :
     {
     }
 
-    void gain(float g)
-    {
-      _gain = g;
-    }
-
     virtual void update(void)
     {
-        audio_block_f32_t *blockL = AudioStream_F32::receiveWritable_f32(0);
-        audio_block_f32_t *blockH = AudioStream_F32::receiveReadOnly_f32(1);
-        
-        if (!blockL) return;
+      audio_block_f32_t *blockL = AudioStream_F32::receiveWritable_f32(0);
+      if (!blockL) return;
 
-        if (!blockH)
-        {
-          AudioStream_F32::release(blockL);
-          return;
-        }
-
-        for (uint16_t i = 0; i < blockL->length; i++)
-        {
-          float low = blockL->data[i];
-          float high = blockH->data[i];
-          
-          low -= (_offsetLow += (low - _offsetLow) * _hpa);
-          high -= (_offsetHigh += (high - _offsetHigh) * _hpa);
-          float sample = (low * _gain);
-
-          
-          float lowGain = fabsf(low);
-          float highGain = fabsf(high);
-          
-          float x = (highGain - _low) * _range;
-          
-          if (x < 0.0f)
-          {
-            // Below - low gain input is too low to reliably track gain error - use high gain only
-            sample = high;
-          }
-          else if (x < 1.0f)
-          {
-            // Transition
-            // TODO track gain error
-
-            // Interpolate between samples
-            sample = (sample * x) + (low * (1.0f - x));
-          }
-
-          blockL->data[i] = sample;
-        }
-
-        AudioStream_F32::transmit(blockL, 0);
+      audio_block_f32_t *blockH = AudioStream_F32::receiveReadOnly_f32(1);
+      if (!blockH)
+      {
         AudioStream_F32::release(blockL);
-        AudioStream_F32::release(blockH);
+        return;
+      }
+
+      float gain = _gain;
+
+      for (uint16_t i = 0; i < blockL->length; i++)
+      {
+        float ls = blockL->data[i] * gain;
+        float hs = blockH->data[i];
+        float lx = 0.0f;
+        float hx = 1.0f;
+
+        float low = _ld.detect(ls);
+        float high = _lh.detect(hs);
+        float r = 0.0f;
+
+        if (high < _min)
+        {
+          lx = 0.0f;
+        }
+        else if (high < _max)
+        {
+          lx = high * (1.0f / _max);
+          hx = 1.0f - lx;
+          r = (high / low) - 1.0f;
+          r = lx < 0.5f ? r * lx : r * hx;
+          r *= 0.00025f;
+        }
+        else
+        {
+          lx = 1.0f;
+          hx = 0.0f;
+        }
+
+        blockL->data[i] = (hs * hx) + (ls * lx);
+
+        gain += r;
+        _error = r;
+      }
+
+      _gain = gain;
+
+      AudioStream_F32::transmit(blockL, 0);
+      AudioStream_F32::release(blockL);
+      AudioStream_F32::release(blockH);
     }
-    
+
   private:
     audio_block_f32_t *inputQueueArray[2];
-    static constexpr float _low = 1.0f / 10.0f;
-    static constexpr float _high = 1.0f - _low;
-    static constexpr float _range = 1.0f / (_high - _low);
-    static constexpr float _hpa = 0.00005f;
-    
-    float _offsetLow = 0.0f;
-    float _offsetHigh = 0.0f;
-
-    float _gain = 4.04f;    
+    Detector _ld;
+    Detector _lh;
+    static constexpr float _min = 0.001f; // ~ -60.0db
+    static constexpr float _max = 0.5f;    // ~ -6.0db
+    float _gain = 4.0f;
+    float _error = 0.0f;
 };
 
 #endif

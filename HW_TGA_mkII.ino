@@ -18,7 +18,12 @@ BALibrary::BAAudioControlWM8731 codec;
 
 long volumePos = 0;
 
-void print(const char *s, int line = 0)
+FLASHMEM void clear()
+{
+  lcd.clear();
+}
+
+FLASHMEM void print(const char *s, int line = 0)
 {
   lcd.setCursor(0, line);
   lcd.print("                ");
@@ -26,7 +31,23 @@ void print(const char *s, int line = 0)
   lcd.print(s);
 }
 
-void HW_Setup()
+FLASHMEM void displayTunerHW(float freq, int note, int semitone, float cents)
+{
+  int c = round(cents * 0.25f);
+  if (c < -4)       print("[       ");
+  else if (c == -4) print("]       ");
+  else if (c == -3) print(" ]      ");
+  else if (c == -2) print("  ]     ");
+  else if (c == -1) print("   ]    ");
+  else if (c == 0)  print("-  ][  -");
+  else if (c == 1)  print("    [   ");
+  else if (c == 2)  print("     [  ");
+  else if (c == 3)  print("      [ ");
+  else if (c == 4)  print("       [");
+  else if (c > 4)   print("       ]");
+}
+
+FLASHMEM void HW_Setup()
 {
   pinMode(PIN_ENC_VOL_A, INPUT_PULLUP);
   pinMode(PIN_ENC_VOL_B, INPUT_PULLUP);
@@ -58,7 +79,7 @@ void HW_Setup()
   lcd.clear();
 }
 
-void HW_Loop()
+FLASHMEM void HW_Loop()
 {
   long newVolumePos = (volKnob.read() + 2) / 4;
   if (newVolumePos != volumePos)

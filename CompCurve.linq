@@ -61,8 +61,8 @@ void Main()
 	xaxis.Interval = 6.0;
 
 	var yaxis = area.AxisY;
-	yaxis.Minimum = -80.0;
-	yaxis.Maximum = 6.0;
+	yaxis.Minimum = -60.0;
+	yaxis.Maximum = 12.0;
 	yaxis.Interval = 6.0;
 	
 	area.AxisY2.Enabled = System.Windows.Forms.DataVisualization.Charting.AxisEnabled.False;

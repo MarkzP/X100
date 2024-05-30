@@ -1,8 +1,10 @@
-#ifndef effect_phaser_F32_h_
-#define effect_phaser_F32_h_
+#ifndef _effect_phaser_F32_h_
+#define _effect_phaser_F32_h_
 
 #include "OpenAudio_ArduinoLibrary.h"
 #include "AudioStream_F32.h"
+
+#include "components_F32.h"
 
 class AudioEffectPhaser_F32 :
   public AudioStream_F32
@@ -17,7 +19,7 @@ class AudioEffectPhaser_F32 :
     }
 
     AudioEffectPhaser_F32(const AudioSettings_F32 &settings):
-      AudioStream_F32(1, inputQueueArray)
+      AudioStream_F32(1, inputQueueArray), _lfo(settings.sample_rate_Hz)
     {
       init(settings.sample_rate_Hz);
     }
@@ -25,7 +27,7 @@ class AudioEffectPhaser_F32 :
     void rate(float rate = 0.2f)
     {
       rate = rate < 0.0f ? 0.0f : rate > 10.0f ? 10.0f : rate;
-      _phaseIncrement = (2.0f * rate) / _sample_rate_Hz;
+      _lfo.freq(rate);
     }
 
     void smoothing(float ms = 20.0f)
@@ -69,26 +71,21 @@ class AudioEffectPhaser_F32 :
 
     virtual void update(void)
     {
-      float g, s_in, s_out;
-      int s;
       audio_block_f32_t *block = AudioStream_F32::receiveWritable_f32(0);
-      
       if (!block) return;
 
       if (_stages > 0)
       {
         for (uint16_t i = 0; i < block->length; i++)
         {
-          _phase += _phaseIncrement;
-          while (_phase >= 1.0f) _phase -= 2.0f;
-          _x += (fabsf(_phase) - _x) * _smooth;
+          _x += (_lfo.next() - _x) * _smooth;
 
-          g = (_x * _gx) + _gz;
+          float g = (_x * _gx) + _gz;
           
-          s_in = block->data[i];
+          float s_in = block->data[i];
 
-          s = 0;
-          s_out = _s[s] - (g * s_in * 0.995f);
+          int s = 0;
+          float s_out = _s[s] - (g * s_in * 0.995f);
           _s[s++] = s_in + (g * s_out * 0.995f);
           s_in = s_out + _fbk;
           _fbk = 0.0f;
@@ -136,6 +133,7 @@ class AudioEffectPhaser_F32 :
   private:
     audio_block_f32_t *inputQueueArray[1];
     float _sample_rate_Hz;
+    TriangleLfo _lfo;
     float _x;
     float _gz;
     float _gx;
@@ -147,8 +145,6 @@ class AudioEffectPhaser_F32 :
     float _res;
     float _dry;
     float _wet;
-    float _phase;
-    float _phaseIncrement;
 
     float coeff(float f)
     {
@@ -159,7 +155,6 @@ class AudioEffectPhaser_F32 :
     void init(float sample_rate_Hz)
     {
       _sample_rate_Hz = sample_rate_Hz;
-
       rate();
       smoothing();
       dry();

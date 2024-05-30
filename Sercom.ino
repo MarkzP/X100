@@ -25,7 +25,7 @@ int com_decimal = 0;
 bool com_neg = false;
 bool com_escape = false;
 
-void initSercom()
+FLASHMEM void initSercom()
 {
   for (int i = 0; i <= maxLen; i++) com_instance[i] = 0;
   for (int i = 0; i <= maxLen; i++) com_function[i] = 0;
@@ -42,7 +42,7 @@ void initSercom()
   com_state = COM_Init;
 }
 
-void handleChar(char c)
+FLASHMEM void handleChar(char c)
 {
   switch (com_state)
   {
@@ -111,7 +111,7 @@ void handleChar(char c)
 	}
 }
 
-void loadPreset(const char* fname)
+FLASHMEM void loadPreset(const char* fname)
 {
   File f = SD.open(fname);
   if (f)
@@ -123,7 +123,7 @@ void loadPreset(const char* fname)
   else if (debug) Serial.printf("File %s not found\r\n", fname);
 }
 
-void listPresets()
+FLASHMEM void listPresets()
 {
   File dir = SD.open("/");
   while (true)

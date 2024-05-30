@@ -60,7 +60,7 @@ class Parameter
       _lastval = -_value;      
     }
 
-    bool stepChange(int steps)
+    FLASHMEM bool stepChange(int steps)
     {
       switch (_type)
       {
@@ -143,7 +143,7 @@ class Parameter
       return _value != _lastval;
     }
 
-    bool toggle()
+    FLASHMEM bool toggle()
     {
       switch (_type)
       {
@@ -177,7 +177,7 @@ class Parameter
 
     operator float() const { return _type == PT_Freq ? _fbands[(int)_value] : _value; }
 
-    const char *tos()
+    FLASHMEM const char *tos()
     {
       int len = sizeof(_buf);
       switch (_type)
@@ -251,17 +251,17 @@ class Effect
       currentEffect = this;
     }
 
-    Parameter *param()
+    FLASHMEM Parameter *param()
     {
       return &_params[_iparam];
     }
 
-    Parameter& operator [](int i)
+    FLASHMEM Parameter& operator [](int i)
     {
       return _params[i < 0 || i >= _nparams ? _iparam : i ];
     }
 
-    Parameter& operator [](const char* name)
+    FLASHMEM Parameter& operator [](const char* name)
     {
       for (int i = 0; i < _nparams; i++)
       {
@@ -270,7 +270,7 @@ class Effect
       return _params[_iparam];
     }
 
-    Parameter *param(const char* name)
+    FLASHMEM Parameter *param(const char* name)
     {
       if (name != nullptr)
       {
@@ -282,7 +282,7 @@ class Effect
       return nullptr;
     }
 
-    void nextParam()
+    FLASHMEM void nextParam()
     {
       int cp = _iparam;
       do
@@ -335,7 +335,7 @@ class Effect
 
     const char *name() { return _name; }
 
-    Print *save(Print *p)
+    FLASHMEM Print *save(Print *p)
     {
       p->printf("%s.reset();\r\n", _name);
       for (int i = 0; i < _nparams; i++)
@@ -348,7 +348,7 @@ class Effect
       return p;
     }
 
-    Print *dump(Print *p)
+    FLASHMEM Print *dump(Print *p)
     {
       p->printf("[%s]\r\n", _name);
       for (int i = 0; i < _nparams; i++)
@@ -441,6 +441,6 @@ class Effect
 Effect *Effect::currentEffect;
 
 #define EPARAMS(_n_) Parameter _efxp_ ## _n_[] =
-#define EFFECT(_n_) Effect _efx_ ## _n_(#_n_, sizeof(_efxp_ ## _n_) / sizeof(_efxp_ ## _n_[0]), _efxp_ ## _n_, [](Effect &e)-> void 
+#define EFFECT(_n_) Effect _efx_ ## _n_(#_n_, sizeof(_efxp_ ## _n_) / sizeof(_efxp_ ## _n_[0]), _efxp_ ## _n_, [](Effect &e)-> FLASHMEM void 
 
 #endif

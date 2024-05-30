@@ -1,65 +1,24 @@
 #include "AudioStream_F32.h"
 #include <Bounce.h>
 #include <Encoder.h>
-//#include <1euroFilter.h>
 #include "Effect.h"
 
 
-EPARAMS(input)
+EPARAMS(preamp)
 {
-  Parameter("l", Parameter::PT_Float, 0.0f, 0.0f, 4.0f),
-  Parameter("r", Parameter::PT_Float, 1.0f, 0.0f, 1.0f),
-  Parameter("h", Parameter::PT_Float, 0.0f, 0.0f, 1.0f),
-  Parameter("gain", Parameter::PT_Float, 4.0f, 3.0f, 5.0f),
-};
-EFFECT(input)
-{
-  int i = 0;
-  Parameter& l = e[i++];
-  Parameter& r = e[i++];
-  Parameter& h = e[i++];
-  Parameter& gain = e[i++];
-
-  if (l.changed()) inputMixer.gain(0, l);
-  if (r.changed()) inputMixer.gain(1, r);
-  if (h.changed()) inputMixer.gain(3, h);
-  if (gain.changed()) hdr.gain(gain);
-});
-
-
-EPARAMS(pre_eq)
-{
-  Parameter("hp_f", Parameter::PT_Float, 100.0f, 50.0f, 800.0f, 10.0f),
-  Parameter("ls_f", Parameter::PT_Float, 1000.0f, 800.0f, 1600.0f, 25.0f),
-  Parameter("ls_g", Parameter::PT_Float, -4.5f, -12.0f, 12.0f),
-  Parameter("lp_f", Parameter::PT_Float, 13500.0f, 3000.0f, 18000.0f, 250.0f),
-  Parameter("lp_q", Parameter::PT_Float, 0.7f, 0.5f, 3.5f, 0.05f),
+  Parameter("level", Parameter::PT_Float, 0.5f),
   Parameter("enable", Parameter::PT_Bool, true),
 };
-EFFECT(pre_eq)
+EFFECT(preamp)
 {
   int i = 0;
-  Parameter& hp_f = e[i++];
-  Parameter& ls_f = e[i++];
-  Parameter& ls_g = e[i++];
-  Parameter& lp_f = e[i++];
-  Parameter& lp_q = e[i++];
+  Parameter& level = e[i++];
   Parameter& enable = e[i++];
 
   bool enableChanged = enable.changed();
-  
-  if (enableChanged) preampEq.doClassInit();
 
-  if (enable)
-  {
-    if (enableChanged || hp_f.changed()) preampEq.setHighpass(0, hp_f, 0.7071f);
-    if (enableChanged || ls_f.changed() || ls_g.changed()) preampEq.setLowShelf(1, ls_f, ls_g, 0.3f);
-    if (enableChanged || lp_f.changed() || lp_q.changed()) preampEq.setLowpass(2, lp_f, lp_q);
-  }
-
-  //if (enableChanged && enable) preampEq.setLowpass(3, 10000.0f, 0.7071f);
-  
-  preampEq.begin();  
+  if (enableChanged || level.changed()) preamp.level(level);
+  if (enableChanged) preamp.enable(enable);
 });
 
 
@@ -117,84 +76,42 @@ EFFECT(compression)
 });
 
 
-EPARAMS(auto_filter)
+EPARAMS(auto_wah)
 {
-  Parameter("sensitivity", Parameter::PT_Float, 9.0f, 0.0f, 10.0f),
-  Parameter("freq", Parameter::PT_Freq, 250.0f, 100.0f, 10000.0f),
-  Parameter("resonance", Parameter::PT_Float, 3.5f, 0.5f, 5.0f, 0.05f),
-  Parameter("rate", Parameter::PT_Float, 5.0f, 0.1f, 50.0f, 0.1f),
-  Parameter("depth", Parameter::PT_Float, 0.0f),
-  Parameter("shape", Parameter::PT_Enum, 0.0f, 0.0f, 4.0f, 1.0f, (const char*[]){"sin", "tri", "saw", "rev", "squ"}),
-  Parameter("smoothing", Parameter::PT_Float, 200.0f, 0.0f, 500.0f),
-  Parameter("lp", Parameter::PT_Float, 0.25f),
-  Parameter("bp", Parameter::PT_Float, 0.55f),
-  Parameter("hp", Parameter::PT_Float, 0.0f),
+  Parameter("sensitivity", Parameter::PT_Float, 0.5f),
+  Parameter("speed", Parameter::PT_Float, 0.5f),
   Parameter("dry", Parameter::PT_Float, 0.0f),
+  Parameter("wet", Parameter::PT_Float, 1.0f),
   Parameter("enable", Parameter::PT_Bool, false),  
 };
-EFFECT(auto_filter)
+EFFECT(auto_wah)
 {
   int i = 0;
   Parameter& sensitivity = e[i++];
-  Parameter& freq = e[i++];
-  Parameter& resonance = e[i++];
-  Parameter& rate = e[i++];
-  Parameter& depth = e[i++];
-  Parameter& shape = e[i++];
-  Parameter& smoothing = e[i++];
-  Parameter& lp = e[i++];
-  Parameter& bp = e[i++];
-  Parameter& hp = e[i++];
+  Parameter& speed = e[i++];
   Parameter& dry = e[i++];
+  Parameter& wet = e[i++];
   Parameter& enable = e[i++];
   
   bool enableChanged = enable.changed();
 
-  if (enable)
-  {
-    if (enableChanged)
-    {
-      svFilter.octaveControl(3.0f);
-      filterLfo.amplitude(1.0f);      
-    }
-    if (enableChanged || sensitivity.changed()) svModMixer.gain(0, sensitivity);
-    if (enableChanged || freq.changed()) svFilter.frequency(freq);
-    if (enableChanged || resonance.changed()) svFilter.resonance(resonance);
-    if (enableChanged || rate.changed()) filterLfo.frequency(rate);
-    if (enableChanged || depth.changed()) svModMixer.gain(1, depth);
-    if (enableChanged || shape.changed()) switch ((int)shape)
-    {
-      case 1: filterLfo.begin(WAVEFORM_TRIANGLE); break;
-      case 2: filterLfo.begin(WAVEFORM_SAWTOOTH); break;
-      case 3: filterLfo.begin(WAVEFORM_SAWTOOTH_REVERSE); break;
-      case 4: filterLfo.begin(WAVEFORM_SQUARE); break;
-      default: filterLfo.begin(WAVEFORM_SINE); break;
-    }      
-    if (enableChanged || smoothing.changed()) svFilter.smoothing(smoothing);
-    if (enableChanged || lp.changed()) filterMixer.gain(1, lp);
-    if (enableChanged || bp.changed()) filterMixer.gain(2, bp);
-    if (enableChanged || hp.changed()) filterMixer.gain(3, hp);
-    if (enableChanged || dry.changed()) filterMixer.gain(0, dry);
-  }
-  else
-  {
-    filterLfo.amplitude(0.0f);
-    svModMixer.gain(0, 0.0f);
-    svModMixer.gain(1, 0.0f);
-    filterMixer.gain(0, 1.0f);
-    filterMixer.gain(1, 0.0f);
-    filterMixer.gain(2, 0.0f);
-    filterMixer.gain(3, 0.0f);    
-  }
+  if (enableChanged || sensitivity.changed()) wah.sensitivity(sensitivity);
+  if (enableChanged || speed.changed()) wah.speed(speed);
+  if (enableChanged || dry.changed()) wah.dry(dry);
+  if (enableChanged || wet.changed()) wah.wet(wet);
+  if (enableChanged) wah.enable(enable);
 });
 
 
 EPARAMS(distortion)
 {
   Parameter("gain", Parameter::PT_Float, 0.5f),
-  Parameter("bottom", Parameter::PT_Float, 0.2f),
-  Parameter("tone", Parameter::PT_Float, 0.9f),
-  Parameter("level", Parameter::PT_Float, 0.45f),
+  Parameter("bottom", Parameter::PT_Float, 0.5f),
+  Parameter("color", Parameter::PT_Float, 0.5f),
+  Parameter("skew", Parameter::PT_Float, 0.0f),
+  Parameter("mid", Parameter::PT_Float, 0.5f),
+  Parameter("tone", Parameter::PT_Float, 0.75f),
+  Parameter("level", Parameter::PT_Float, 0.5f),
   Parameter("enable", Parameter::PT_Bool, false),
 };
 EFFECT(distortion)
@@ -202,24 +119,62 @@ EFFECT(distortion)
   int i = 0;
   Parameter& gain = e[i++];
   Parameter& bottom = e[i++];
+  Parameter& color = e[i++];
+  Parameter& skew = e[i++];
+  Parameter& mid = e[i++];  
   Parameter& tone = e[i++];
   Parameter& level = e[i++];
   Parameter& enable = e[i++];
 
   bool enableChanged = enable.changed();
 
-  if (enable)
-  {
-    if (enableChanged || gain.changed()) distortion.gain((powf(gain, 1.5f) * 400.0f) + 10.0f);
-    if (enableChanged || bottom.changed()) distortion.bottom(bottom);
-    if (enableChanged || tone.changed()) distortion.tone(tone);
-    if (enableChanged || level.changed()) distortion.level((powf(level, 1.5f) * 0.27f) + 0.01f);
-  }
-  else 
-  {
-    distortion.begin();
-  }
+  if (enableChanged || gain.changed()) distortion.gain(gain);
+  if (enableChanged || bottom.changed()) distortion.bottom(bottom);
+  if (enableChanged || color.changed() || skew.changed()) distortion.color(color, skew);
+  if (enableChanged || tone.changed() || mid.changed()) distortion.tone(tone, mid);
+  if (enableChanged || level.changed()) distortion.level(level);
+  if (enableChanged) distortion.enable(enable);
 });
+
+
+EPARAMS(equalizer)
+{
+  Parameter("100", Parameter::PT_Float, 0.0f, -15.0f, 15.0f),
+  Parameter("200", Parameter::PT_Float, 0.0f, -15.0f, 15.0f),
+  Parameter("400", Parameter::PT_Float, 0.0f, -15.0f, 15.0f),
+  Parameter("800", Parameter::PT_Float, 0.0f, -15.0f, 15.0f),
+  Parameter("1_6k", Parameter::PT_Float, 0.0f, -15.0f, 15.0f),
+  Parameter("3_2k", Parameter::PT_Float, 0.0f, -15.0f, 15.0f),
+  Parameter("6_4k", Parameter::PT_Float, 0.0f, -15.0f, 15.0f),
+  Parameter("level", Parameter::PT_Float, 0.0f, -15.0f, 15.0f),
+  Parameter("enable", Parameter::PT_Bool, false),
+};
+EFFECT(equalizer)
+{
+  int i = 0;
+  Parameter& g1 = e[i++];
+  Parameter& g2 = e[i++];
+  Parameter& g3 = e[i++];
+  Parameter& g4 = e[i++];
+  Parameter& g5 = e[i++];
+  Parameter& g6 = e[i++];
+  Parameter& g7 = e[i++];
+  Parameter& level = e[i++];
+  Parameter& enable = e[i++];
+
+  bool enableChanged = enable.changed();
+
+  if (enableChanged || g1.changed()) equalizer.eq(1, g1);
+  if (enableChanged || g2.changed()) equalizer.eq(2, g2);
+  if (enableChanged || g3.changed()) equalizer.eq(3, g3);
+  if (enableChanged || g4.changed()) equalizer.eq(4, g4);
+  if (enableChanged || g5.changed()) equalizer.eq(5, g5);
+  if (enableChanged || g6.changed()) equalizer.eq(6, g6);
+  if (enableChanged || g7.changed()) equalizer.eq(7, g7);
+  if (enableChanged || level.changed()) equalizer.level(level);
+  if (enableChanged) equalizer.enable(enable);
+});
+
 
 EPARAMS(tonestack)
 {
@@ -240,16 +195,17 @@ EFFECT(tonestack)
 
   if (enableChanged || bass.changed() || middle.changed() || treble.changed())
   {
-    toneStack.enable(enable);
     toneStack.setTone(bass, middle, treble);
   }
+
+  if (enableChanged) toneStack.enable(enable);
 });
 
 
 EPARAMS(phaser)
 {
-  Parameter("preset", Parameter::PT_Enum, 0.0f, 0.0f, 4.0f, 1.0f, (const char*[]){" p_90", " p_45", "p_100", " evh", "sm_st"}),  
-  Parameter("rate", Parameter::PT_Float, 0.02f),
+  Parameter("preset", Parameter::PT_Enum, 0.0f, 0.0f, 4.0f, 1.0f, (const char*[]){" p_90", " p_45", "p_100", " evh", "sm_st"}),
+  Parameter("rate", Parameter::PT_Float, 0.1f),
   Parameter("dry", Parameter::PT_Float, 0.7f),
   Parameter("wet", Parameter::PT_Float, 0.7f),
   Parameter("rt_x", Parameter::PT_Coeff, 2.0f, 0.01f, 4.0f, 0.01f),
@@ -360,10 +316,8 @@ EFFECT(phaser)
 
 EPARAMS(tremolo)
 {
-  Parameter("rate", Parameter::PT_Float, 5.0f, 0.1f, 50.0f, 0.1f),
-  Parameter("depth", Parameter::PT_Float, 0.25f),
-  Parameter("shape", Parameter::PT_Enum, 0.0f, 0.0f, 4.0f, 1.0f, (const char*[]){"sin", "tri", "saw", "rev", "squ"}),
-  Parameter("smoothing", Parameter::PT_Float, 20.0f, 0.0f, 500.0f),
+  Parameter("rate", Parameter::PT_Float, 5.0f, 0.1f, 10.0f, 0.1f),
+  Parameter("depth", Parameter::PT_Float, 0.5f),
   Parameter("enable", Parameter::PT_Bool, false),
 };
 EFFECT(tremolo)
@@ -371,85 +325,28 @@ EFFECT(tremolo)
   int i = 0;
   Parameter& rate = e[i++];
   Parameter& depth = e[i++];
-  Parameter& shape = e[i++];
-  Parameter& smoothing = e[i++];
   Parameter& enable = e[i++];
 
   bool enableChanged = enable.changed();
 
   if (enable)
   {
-    if (enableChanged || rate.changed()) tremoloLfo.frequency(rate);
-    if (enableChanged || depth.changed())
-    { 
-      tremoloLfo.amplitude(depth);
-      tremoloVca.offset(1.0f - depth);
-    }
-    if (enableChanged || shape.changed()) switch ((int)shape)
-    {
-      case 1: tremoloLfo.begin(WAVEFORM_TRIANGLE); break;
-      case 2: tremoloLfo.begin(WAVEFORM_SAWTOOTH); break;
-      case 3: tremoloLfo.begin(WAVEFORM_SAWTOOTH_REVERSE); break;
-      case 4: tremoloLfo.begin(WAVEFORM_SQUARE); break;
-      default: tremoloLfo.begin(WAVEFORM_SINE); break;
-    }
-    if (enableChanged || smoothing.changed()) tremoloVca.smoothing(smoothing);
+    if (enableChanged || rate.changed()) tremolo.rate(rate);
+    if (enableChanged || depth.changed()) tremolo.depth(depth);
   }
-  else
-  {
-    tremoloLfo.amplitude(0.0f);
-    tremoloVca.offset(0.0f);
-  }
+  else tremolo.depth(0.0f);
 });
 
 
 EPARAMS(chorus)
 {
-  Parameter("preset", Parameter::PT_Enum, 0.0f, 0.0f, 7.0f, 1.0f, (const char*[]){" def", " ce2", " bf2", " tsc", " dd1", " dd2", " dd3", " dd4"}),
+  Parameter("preset", Parameter::PT_Enum, 0.0f, 0.0f, 7.0f, 1.0f, (const char*[]){" def", " tsc", " ce2", " bf2", " dd1", " dd2", " dd3", " dd4"}),
   Parameter("rate", Parameter::PT_Float, 0.5f),
   Parameter("depth", Parameter::PT_Float, 0.5f),
-  Parameter("delay", Parameter::PT_Float, 0.5f),
   Parameter("resonance", Parameter::PT_Float, 0.5f),
-  Parameter("dry", Parameter::PT_Float, 0.8f),
-  Parameter("wet", Parameter::PT_Float, 0.8f),  
-  Parameter("hp_f", Parameter::PT_Coeff, 150.0f, 50.0f, 800.0f, 10.0f),
-  Parameter("lp_f", Parameter::PT_Coeff, 13000.0f, 4000.0f, 13000.0f, 250.0f),
-  Parameter("rt_x", Parameter::PT_Coeff, 2.0f, 0.01f, 4.0f, 0.01f),
-  Parameter("rt_z", Parameter::PT_Coeff, 0.4f, 0.0f, 10.0f, 0.1f),
-  Parameter("rt_l", Parameter::PT_Coeff, 3.0f, 0.0f, 10.0f, 0.1f),
-  Parameter("rt_c", Parameter::PT_Coeff, 1.5f, 0.0f, 10.0f, 0.1f),
-  Parameter("rt_r", Parameter::PT_Coeff, 3.0f, 0.0f, 10.0f, 0.1f),  
-  Parameter("dp_x", Parameter::PT_Coeff, 2.0f, 0.01f, 4.0f, 0.01f),
-  Parameter("dp_z", Parameter::PT_Coeff, 0.0f),
-  Parameter("dp_l", Parameter::PT_Coeff, 0.12f),  
-  Parameter("dp_c", Parameter::PT_Coeff, 0.20f),  
-  Parameter("dp_r", Parameter::PT_Coeff, 0.12f),  
-  Parameter("in_l", Parameter::PT_Coeff, 1.0f, -1.0f, 1.0f, 0.02f),
-  Parameter("in_c", Parameter::PT_Coeff, 1.0f, -1.0f, 1.0f, 0.02f),
-  Parameter("in_r", Parameter::PT_Coeff, 1.0f, -1.0f, 1.0f, 0.02f),  
-  Parameter("fb_x", Parameter::PT_Coeff, 2.0f, 0.01f, 4.0f, 0.01f),
-  Parameter("fb_z", Parameter::PT_Coeff, 0.0f),
-  Parameter("fb_l", Parameter::PT_Coeff, 0.0f, -1.0f, 1.0f, 0.02f),
-  Parameter("fb_cl", Parameter::PT_Coeff, -0.4f, -1.0f, 1.0f, 0.02f),
-  Parameter("fb_cc", Parameter::PT_Coeff, 0.7f, -1.0f, 1.0f, 0.02f),
-  Parameter("fb_cr", Parameter::PT_Coeff, -0.4f, -1.0f, 1.0f, 0.02f),
-  Parameter("fb_r", Parameter::PT_Coeff, 0.0f, -1.0f, 1.0f, 0.02f),  
-  Parameter("w_ll", Parameter::PT_Coeff, 0.9f, -1.0f, 1.0f, 0.02f),
-  Parameter("w_lr", Parameter::PT_Coeff, 0.0f, -1.0f, 1.0f, 0.02f),
-  Parameter("w_cl", Parameter::PT_Coeff, 0.75f, -1.0f, 1.0f, 0.02f),
-  Parameter("w_cr", Parameter::PT_Coeff, -0.75f, -1.0f, 1.0f, 0.02f),
-  Parameter("w_rl", Parameter::PT_Coeff, 0.0f, -1.0f, 1.0f, 0.02f),  
-  Parameter("w_rr", Parameter::PT_Coeff, 0.9f, -1.0f, 1.0f, 0.02f),
-  Parameter("ph_c", Parameter::PT_Coeff, 90.0f, 0.0f, 359.0f, 1.0f),
-  Parameter("ph_r", Parameter::PT_Coeff, 120.0f, 0.0f, 359.0f, 1.0f),  
-  Parameter("sh_l", Parameter::PT_Enum, 0.0f, 0.0f, 1.0f, 1.0f, (const char*[]){" tri", "sine"}),
-  Parameter("sh_c", Parameter::PT_Enum, 0.0f, 0.0f, 1.0f, 1.0f, (const char*[]){" tri", "sine"}),
-  Parameter("sh_r", Parameter::PT_Enum, 0.0f, 0.0f, 1.0f, 1.0f, (const char*[]){" tri", "sine"}),
-  Parameter("dl_x", Parameter::PT_Coeff, 0.7f, 0.01f, 4.0f, 0.01f),
-  Parameter("dl_z", Parameter::PT_Coeff, 2.0f, 0.0f, 25.0f, 0.1f),
-  Parameter("dl_l", Parameter::PT_Coeff, 22.0f, 0.0f, 25.0f, 0.5f),
-  Parameter("dl_c", Parameter::PT_Coeff, 0.0f, 0.0f, 25.0f, 0.5f),
-  Parameter("dl_r", Parameter::PT_Coeff, 23.0f, 0.0f, 25.0f, 0.5f),  
+  Parameter("color", Parameter::PT_Float, 0.5f),
+  Parameter("dry", Parameter::PT_Float, 1.0f),
+  Parameter("wet", Parameter::PT_Float, 0.7f),
   Parameter("enable", Parameter::PT_Bool, true),
 };
 EFFECT(chorus)
@@ -458,341 +355,43 @@ EFFECT(chorus)
   Parameter& preset = e[i++];
   Parameter& rate = e[i++];
   Parameter& depth = e[i++];
-  Parameter& delay = e[i++];
   Parameter& resonance = e[i++];
+  Parameter& color = e[i++];
   Parameter& dry = e[i++];
-  Parameter& wet = e[i++];  
-  Parameter& hp_f = e[i++];
-  Parameter& lp_f = e[i++];
-  Parameter& rt_x = e[i++];
-  Parameter& rt_z = e[i++];
-  Parameter& rt_l = e[i++];
-  Parameter& rt_c = e[i++];
-  Parameter& rt_r = e[i++];
-  Parameter& dp_x = e[i++];
-  Parameter& dp_z = e[i++];
-  Parameter& dp_l = e[i++];
-  Parameter& dp_c = e[i++];
-  Parameter& dp_r = e[i++];  
-  Parameter& in_l = e[i++];
-  Parameter& in_c = e[i++];
-  Parameter& in_r = e[i++];  
-  Parameter& fb_x = e[i++];
-  Parameter& fb_z = e[i++];
-  Parameter& fb_l = e[i++];
-  Parameter& fb_cl = e[i++];
-  Parameter& fb_cc = e[i++];
-  Parameter& fb_cr = e[i++];
-  Parameter& fb_r = e[i++];  
-  Parameter& w_ll = e[i++];
-  Parameter& w_lr = e[i++];
-  Parameter& w_cl = e[i++];
-  Parameter& w_cr = e[i++];
-  Parameter& w_rl = e[i++];  
-  Parameter& w_rr = e[i++];
-  Parameter& ph_c = e[i++];
-  Parameter& ph_r = e[i++];  
-  Parameter& sh_l = e[i++];
-  Parameter& sh_c = e[i++];
-  Parameter& sh_r = e[i++];
-  Parameter& dl_x = e[i++];
-  Parameter& dl_z = e[i++];
-  Parameter& dl_l = e[i++];
-  Parameter& dl_c = e[i++];
-  Parameter& dl_r = e[i++];  
+  Parameter& wet = e[i++];
   Parameter& enable = e[i++];
 
   bool enableChanged = enable.changed();
 
-  if (enable)
+  if (enableChanged || preset.changed())
   {
-    if (preset.changed())
+    if (!enable) chorus.type(AudioEffectMultiChorus_F32::Bypass);
+    else switch ((int)preset)
     {
-      switch ((int)preset)
-      {
-        case 0:
-          hp_f.reset();
-          lp_f.reset();
-          rt_z.reset();
-          rt_x.reset();
-          rt_l.reset();
-          rt_c.reset();
-          rt_r.reset();
-          dp_z.reset();
-          dp_x.reset();
-          dp_l.reset();
-          dp_c.reset();
-          dp_r.reset();
-          in_l.reset();
-          in_c.reset();
-          in_r.reset();
-          fb_z.reset();
-          fb_x.reset();
-          fb_l.reset();
-          fb_cl.reset();
-          fb_cc.reset();
-          fb_cr.reset();
-          fb_r.reset();
-          w_ll.reset();
-          w_lr.reset();
-          w_cl.reset();
-          w_cr.reset();
-          w_rr.reset();
-          w_rl.reset();
-          ph_c.reset();
-          ph_r.reset();
-          sh_l.reset();
-          sh_c.reset();
-          sh_r.reset();
-          dl_z.reset();
-          dl_x.reset();
-          dl_l.reset();
-          dl_c.reset();
-          dl_r.reset();
-          break;
-        case 1: // CE2
-          hp_f.change(250.0f);
-          lp_f.change(6900.0f);
-          rt_z.change(0.3f);
-          rt_x.change(2.0f);
-          rt_c.change(3.2f);
-          dp_z.change(0.025f);
-          dp_x.change(2.0f);
-          dp_c.change(0.55f);
-          in_l.change(0.0f);
-          in_c.change(1.0f);
-          in_r.change(0.0f);
-          fb_z.change(0.0f);
-          fb_cl.change(0.0f);
-          fb_cc.change(0.0f);
-          fb_cr.change(0.0f);
-          w_ll.change(0.0f);
-          w_lr.change(0.0f);
-          w_cl.change(0.9f);
-          w_cr.change(-0.9f);
-          w_rr.change(0.0f);
-          w_rl.change(0.0f);
-          ph_c.change(0.0f);
-          sh_c.change(0.0f);
-          dl_z.change(6.8f);
-          dl_c.change(0.0f);
-          break;
-        case 2: // BF2
-          hp_f.change(350.0f);
-          lp_f.change(6000.0f);
-          rt_z.change(0.0625f);
-          rt_x.change(3.5f);
-          rt_c.change(7.0f);
-          dp_z.change(0.020f);
-          dp_x.change(1.0f);
-          dp_c.change(0.5f);
-          in_l.change(0.0f);
-          in_c.change(1.0f);
-          in_r.change(0.0f);
-          fb_z.change(0.45f);
-          fb_x.change(0.3f);
-          fb_cl.change(0.0f);
-          fb_cc.change(0.5f);
-          fb_cr.change(0.0f);
-          w_ll.change(0.0f);
-          w_lr.change(0.0f);
-          w_cl.change(1.0f);
-          w_cr.change(-1.0f);
-          w_rr.change(0.0f);
-          w_rl.change(0.0f);
-          ph_c.change(0.0f);
-          sh_c.change(0.0f);
-          dl_z.change(0.5f);
-          dl_x.change(4.0f);
-          dl_c.change(6.0f);
-          break;
-        case 3: // TSC
-          hp_f.change(180.0f);
-          lp_f.change(11000.0f);
-          rt_z.change(0.10f);
-          rt_x.change(4.0f);
-          rt_l.change(5.0f);
-          rt_c.change(5.0f);
-          rt_r.change(5.0f);
-          dp_z.change(0.10f);
-          dp_x.change(3.0f);
-          dp_l.change(0.18f);
-          dp_c.change(0.17f);
-          dp_r.change(0.16f);
-          in_l.change(1.0f);
-          in_c.change(1.0f);
-          in_r.change(1.0f);
-          fb_z.change(0.2f);
-          fb_x.change(2.0f);
-          fb_l.change(0.3f);
-          fb_cl.change(-0.3f);
-          fb_cc.change(0.3f);
-          fb_cr.change(-0.3f);
-          fb_r.change(0.3f);
-          w_ll.change(0.8f);
-          w_lr.change(0.0f);
-          w_cl.change(-0.7f);
-          w_cr.change(0.7f);
-          w_rr.change(0.8f);
-          w_rl.change(0.0f);
-          ph_c.change(120.0f);
-          ph_r.change(240.0f);
-          sh_l.change(1.0f);
-          sh_c.change(1.0f);
-          sh_r.change(1.0f);
-          dl_x.change(2.0f);
-          dl_z.change(13.0f);
-          dl_l.change(13.0f);
-          dl_c.change(13.0f);
-          dl_r.change(13.0f);
-          break;
-        case 4:
-        case 5:
-        case 6:
-        case 7:
-          hp_f.change(150.0f);
-          lp_f.change(9000.0f);
-          rt_x.change(2.0000f);
-          rt_z.change((int)preset < 7 ? 0.25f : 0.5f);
-          rt_l.change(0.0f);
-          rt_c.change(0.0f);
-          rt_r.change(0.0f);
-          dp_x.change(2.0f);
-          dp_z.change((int)preset == 5 ? 0.33333f : 0.2f);
-          dp_l.change(0.0f);
-          dp_c.change(0.0f);
-          dp_r.change(0.0f);
-          in_l.change(1.0f);
-          in_c.change(0.0f);
-          in_r.change(1.0f);
-          fb_x.change(2.0f);
-          fb_z.change(0.0f);
-          fb_l.change(0.0f);
-          fb_cl.change(0.0f);
-          fb_cc.change(0.0f);
-          fb_cr.change(0.0f);
-          fb_r.change(0.0f);
-          w_ll.change((int)preset == 7 ? 0.32f : 1.0f);
-          w_lr.change(-0.6f);
-          w_cl.change(0.0f);
-          w_cr.change(0.0f);
-          w_rl.change(-0.6f);
-          w_rr.change((int)preset == 7 ? 0.32f : 1.0f);
-          ph_c.change(0.0000f);
-          ph_r.change(180.0810f);
-          sh_l.change(0);
-          sh_c.change(0);
-          sh_r.change(0);
-          dl_x.change(1.0000f);
-          dl_z.change((int)preset == 4 ? 10.0f : 7.5f);
-          dl_l.change(0.0f);
-          dl_c.change(0.0f);
-          dl_r.change(0.0f);        
-          break;
-        default:
-          break;
-      }
+      case 0: chorus.type(AudioEffectMultiChorus_F32::Default); break;
+      case 1: chorus.type(AudioEffectMultiChorus_F32::TSC); break;
+      case 2: chorus.type(AudioEffectMultiChorus_F32::CE2); break;
+      case 3: chorus.type(AudioEffectMultiChorus_F32::BF2); break;     
+      case 4: chorus.type(AudioEffectMultiChorus_F32::DD1); break;
+      case 5: chorus.type(AudioEffectMultiChorus_F32::DD2); break;
+      case 6: chorus.type(AudioEffectMultiChorus_F32::DD3); break;
+      case 7: chorus.type(AudioEffectMultiChorus_F32::DD4); break;
     }
-
-    if (enableChanged || hp_f.changed() || lp_f.changed())
-    {
-      chorusPostFilterL.doClassInit();
-      chorusPostFilterL.setHighpass(0, hp_f, 0.7071f);
-      chorusPostFilterL.setLowpass(1, lp_f, 0.7071f);
-
-      chorusPostFilterC.doClassInit();
-      chorusPostFilterC.setHighpass(0, hp_f, 0.7071f);
-      chorusPostFilterC.setLowpass(1, lp_f, 0.7071f);
-
-      chorusPostFilterR.doClassInit();
-      chorusPostFilterR.setHighpass(0, hp_f, 0.7071f);
-      chorusPostFilterR.setLowpass(1, lp_f, 0.7071f);
-
-      chorusPostFilterL.begin();
-      chorusPostFilterC.begin();
-      chorusPostFilterR.begin();      
-    }
-
-    float freq = powf(rate, rt_x);
-    bool freqChanged = enableChanged || rate.changed() || rt_x.changed() || rt_z.changed();
-    if (freqChanged || rt_l.changed()) chorusLfoL.frequency((freq * rt_l) + rt_z);
-    if (freqChanged || rt_c.changed()) chorusLfoC.frequency((freq * rt_c) + rt_z);
-    if (freqChanged || rt_r.changed()) chorusLfoR.frequency((freq * rt_r) + rt_z);
-
-    float amp = powf(depth, dp_x);
-    bool ampChanged = enableChanged || depth.changed() || dp_x.changed() || dp_z.changed();
-    if (ampChanged || dp_l.changed()) chorusLfoL.amplitude((amp * dp_l) + dp_z);
-    if (ampChanged || dp_c.changed()) chorusLfoC.amplitude((amp * dp_c) + dp_z);
-    if (ampChanged || dp_r.changed()) chorusLfoR.amplitude((amp * dp_r) + dp_z);
-
-    if (enableChanged || in_l.changed()) chorusInputL.gain(0, in_l);
-    if (enableChanged || in_c.changed()) chorusInputC.gain(0, in_c);
-    if (enableChanged || in_r.changed()) chorusInputR.gain(0, in_r);
-    
-    float feedback = powf(resonance, fb_x);
-    bool feedbackChanged = enableChanged || resonance.changed() || fb_x.changed() || fb_z.changed();
-    if (feedbackChanged || fb_l.changed()) chorusInputL.gain(1, (feedback * fb_l) + fb_z);
-    if (feedbackChanged || fb_cl.changed()) chorusInputL.gain(2, (feedback * fb_cl) + fb_z);
-    if (feedbackChanged || fb_cc.changed()) chorusInputC.gain(1, (feedback * fb_cc) + fb_z);
-    if (feedbackChanged || fb_cr.changed()) chorusInputR.gain(2, (feedback * fb_cr) + fb_z);
-    if (feedbackChanged || fb_r.changed()) chorusInputR.gain(1, (feedback * fb_r) + fb_z);
-
-    if (enableChanged || dry.changed())
-    {
-      chorusMixerL.gain(0, dry);
-      chorusMixerR.gain(0, dry);
-    }
-
-    if (enableChanged || wet.changed() || w_ll.changed()) chorusMixerL.gain(1, wet * w_ll);
-    if (enableChanged || wet.changed() || w_lr.changed()) chorusMixerR.gain(1, wet * w_lr);
-
-    if (enableChanged || wet.changed() || w_cl.changed()) chorusMixerL.gain(2, wet * w_cl);
-    if (enableChanged || wet.changed() || w_cr.changed()) chorusMixerR.gain(2, wet * w_cr);
-
-    if (enableChanged || wet.changed() || w_rl.changed()) chorusMixerL.gain(3, wet * w_rl);
-    if (enableChanged || wet.changed() || w_rr.changed()) chorusMixerR.gain(3, wet * w_rr);
-
-    if (enableChanged || sh_l.changed() || sh_c.changed() || sh_r.changed() || ph_c.changed() || ph_r.changed())
-    {
-      AudioNoInterrupts();
-      chorusLfoL.begin(sh_l ? WAVEFORM_SINE : WAVEFORM_TRIANGLE);
-      chorusLfoC.begin(sh_c ? WAVEFORM_SINE : WAVEFORM_TRIANGLE);
-      chorusLfoR.begin(sh_r ? WAVEFORM_SINE : WAVEFORM_TRIANGLE);
-      chorusLfoL.phase(0.0f);
-      chorusLfoC.phase(ph_c);
-      chorusLfoR.phase(ph_r);
-      AudioInterrupts();
-    }
-
-    bool delayChanged = enableChanged || delay.changed() || dl_x.changed() || dl_z.changed();
-    float delayTime = powf(delay, dl_x);
-    if (delayChanged || dl_l.changed()) chorusModDelayL.delay((delayTime * dl_l) + dl_z);
-    if (delayChanged || dl_c.changed()) chorusModDelayC.delay((delayTime * dl_c) + dl_z);
-    if (delayChanged || dl_r.changed()) chorusModDelayR.delay((delayTime * dl_r) + dl_z);
   }
-  else
-  {
-    chorusMixerL.gain(0, 1.0f);
-    chorusMixerL.gain(1, 0.0f);
-    chorusMixerL.gain(2, 0.0f);
-    chorusMixerL.gain(3, 0.0f);
-    chorusMixerR.gain(0, 1.0f);
-    chorusMixerR.gain(1, 0.0f);
-    chorusMixerR.gain(2, 0.0f);
-    chorusMixerR.gain(3, 0.0f);
-  }
+  if (enableChanged || rate.changed()) chorus.rate(rate);
+  if (enableChanged || depth.changed()) chorus.depth(depth);
+  if (enableChanged || resonance.changed()) chorus.resonance(resonance);
+  if (enableChanged || color.changed()) chorus.color(color);
+  if (enableChanged || dry.changed()) chorus.dry(dry);
+  if (enableChanged || wet.changed()) chorus.wet(wet);
 });
-
 
 EPARAMS(reverb)
 {
-  Parameter("size", Parameter::PT_Float, 0.75f),
-  Parameter("damp", Parameter::PT_Float, 0.35f),
-  Parameter("delay", Parameter::PT_Float, 0.1f, 0.0f, 0.2f, 0.01f),
-  Parameter("wet", Parameter::PT_Float, 0.04f),
-  Parameter("dry", Parameter::PT_Float, 0.96f),
-  Parameter("hp_f", Parameter::PT_Coeff, 500.0f, 50.0f, 800.0f, 10.0f),
-  Parameter("lp_f", Parameter::PT_Coeff, 13000.0f, 4000.0f, 13000.0f, 250.0f),
+  Parameter("size", Parameter::PT_Float, 0.8f),
+  Parameter("damp", Parameter::PT_Float, 0.3f),
+  Parameter("wet", Parameter::PT_Float, 0.15f),
+  Parameter("dry", Parameter::PT_Float, 1.0f),
   Parameter("enable", Parameter::PT_Bool, false),
 };
 EFFECT(reverb)
@@ -800,221 +399,86 @@ EFFECT(reverb)
   int i = 0;
   Parameter& size = e[i++];
   Parameter& damp = e[i++];
-  Parameter& delay = e[i++];
   Parameter& wet = e[i++];
   Parameter& dry = e[i++];
-  Parameter& hp_f = e[i++];
-  Parameter& lp_f = e[i++];
   Parameter& enable = e[i++];
 
   bool enableChanged = enable.changed();
-  
-  if (enable)
-  {
-    if (enableChanged || wet.changed() || dry.changed())
-    {
-      reverbMixerL.gain(0, dry);
-      reverbMixerL.gain(1, wet);
-      reverbMixerR.gain(0, dry);
-      reverbMixerR.gain(1, wet);
-    }
 
-    if (enableChanged || hp_f.changed() || lp_f.changed())
-    {
-      reverbPreFilter.doClassInit();
-      reverbPreFilter.setHighpass(0, hp_f, 0.7071f);
-      reverbPreFilter.setLowpass(1, lp_f, 0.7071f);
-      reverbPreFilter.begin();      
-    }
-
-    if (enableChanged || delay.changed()) reverbPreDelay.delay(delay * 1000.0f);
-    if (enableChanged || size.changed()) reverb.roomsize(size);
-    if (enableChanged || damp.changed()) reverb.damping(damp);
-  }
-  else
-  {
-    reverbMixerL.gain(0, 1.0f);
-    reverbMixerL.gain(1, 0.0f);
-    reverbMixerR.gain(0, 1.0f);
-    reverbMixerR.gain(1, 0.0f);
-  }
+  if (enableChanged || size.changed()) reverb.roomsize(size);
+  if (enableChanged || damp.changed()) reverb.damping(damp);
+  if (enableChanged || wet.changed()) reverb.wet(wet);
+  if (enableChanged || dry.changed()) reverb.dry(dry);
+  if (enableChanged) reverb.enable(enable);
 });
 
 
 EPARAMS(delay)
 {
-  Parameter("preset", Parameter::PT_Enum, 0.0f, 0.0f, 1.0f, 1.0f, (const char*[]){" def", " dd1"}),
-  Parameter("delay", Parameter::PT_Float, 0.5f, 0.01f, 1.0f, 0.01f),
-  Parameter("feedback", Parameter::PT_Float, 0.30f),
-  Parameter("wet", Parameter::PT_Float, 0.15f),
+  Parameter("time", Parameter::PT_Float, 500.0f, 10.0f, 1000.0f, 10.0f),
+  Parameter("repeat", Parameter::PT_Float, 0.30f),
+  Parameter("drive", Parameter::PT_Float, 0.0f),
+  Parameter("freq", Parameter::PT_Freq, 2500.0f, 100.0f, 10000.0f),
+  Parameter("f_q", Parameter::PT_Float, 1.0f, 0.1f, 10.0f, 0.1f),
+  Parameter("f_dr", Parameter::PT_Float, 0.0f),
+  Parameter("f_lo", Parameter::PT_Float, 0.6f),
+  Parameter("f_ba", Parameter::PT_Float, 0.9f),
+  Parameter("f_hi", Parameter::PT_Float, 0.0f),
+  Parameter("rate", Parameter::PT_Float, 0.5f),
+  Parameter("depth", Parameter::PT_Float, 0.5f),
+  Parameter("spread", Parameter::PT_Float, 0.5f),  
+  Parameter("wet", Parameter::PT_Float, 0.3f),
   Parameter("dry", Parameter::PT_Float, 1.0f),
-  Parameter("hp_f", Parameter::PT_Coeff, 150.0f, 50.0f, 800.0f, 10.0f),
-  Parameter("lp_f", Parameter::PT_Coeff, 8500.0f, 3000.0f, 18000.0f, 250.0f),
-  Parameter("in_l", Parameter::PT_Coeff, 1.0f),
-  Parameter("in_r", Parameter::PT_Coeff, 1.0f),
-  Parameter("fb_x", Parameter::PT_Coeff, 1.0f, 0.01f, 4.0f, 0.01f),
-  Parameter("fb_z", Parameter::PT_Coeff, 0.0f),
-  Parameter("fb_ll", Parameter::PT_Coeff, 1.0f),
-  Parameter("fb_lr", Parameter::PT_Coeff, 0.0f),
-  Parameter("fb_rl", Parameter::PT_Coeff, 0.0f),
-  Parameter("fb_rr", Parameter::PT_Coeff, 1.0f),
   Parameter("enable", Parameter::PT_Bool, false),
 };
 EFFECT(delay)
 {
   int i = 0;
-  Parameter& preset = e[i++];
-  Parameter& delay = e[i++];
-  Parameter& feedback = e[i++];
+  Parameter& time = e[i++];
+  Parameter& repeat = e[i++];
+  Parameter& drive = e[i++];
+  Parameter& freq = e[i++];
+  Parameter& f_q = e[i++];
+  Parameter& f_dr = e[i++];
+  Parameter& f_lo = e[i++];
+  Parameter& f_ba = e[i++];
+  Parameter& f_hi = e[i++];
+  Parameter& rate = e[i++];
+  Parameter& depth = e[i++];
+  Parameter& spread = e[i++];
   Parameter& wet = e[i++];
   Parameter& dry = e[i++];
-  Parameter& hp_f = e[i++];
-  Parameter& lp_f = e[i++];
-  Parameter& in_l = e[i++];
-  Parameter& in_r = e[i++];
-  Parameter& fb_x = e[i++];
-  Parameter& fb_z = e[i++];
-  Parameter& fb_ll = e[i++];
-  Parameter& fb_lr = e[i++];
-  Parameter& fb_rl = e[i++];
-  Parameter& fb_rr = e[i++];
   Parameter& enable = e[i++];
 
   bool enableChanged = enable.changed();
-  bool filterChanged = false;
-
-  if (enable)
-  {
-    if (preset.changed())
-    {
-      switch ((int)preset)
-      {
-        case 0:
-          hp_f.reset();
-          lp_f.reset();
-          in_l.reset();
-          in_r.reset();
-          fb_x.reset();
-          fb_z.reset();
-          fb_ll.reset();
-          fb_lr.reset();
-          fb_rl.reset();
-          fb_rr.reset();
-          break;
-        case 1:
-          hp_f.change(50.0f);
-          lp_f.change(15000.0f);
-          in_l.change(1.0f);
-          in_r.change(1.0f);
-          fb_x.change(1.0f);
-          fb_z.change(0.0f);
-          fb_ll.change(1.0f);
-          fb_lr.change(0.0f);
-          fb_rl.change(0.0f);
-          fb_rr.change(1.0f);
-          break;
-        default:
-          break;
-      }
-    }
-    
-    if (enableChanged)
-    {
-      delayFilterL.doClassInit();
-      delayFilterR.doClassInit();
-      filterChanged = true;
-    }
-    
-    if (enableChanged || delay.changed())
-    {
-      delayL.delay(delay * 1000.0f);
-      delayR.delay(delay * 1000.0f);
-    }
-    
-    if (enableChanged || feedback.changed())
-    {
-      delayFeedbackL.gain(1, feedback);
-      delayFeedbackR.gain(1, feedback);
-    }
-    
-    if (enableChanged || wet.changed())
-    {
-      delayMixerL.gain(1, wet);
-      delayMixerR.gain(1, wet);
-    }
-    
-    if (enableChanged || dry.changed())
-    {
-      delayMixerL.gain(0, dry);
-      delayMixerR.gain(0, dry);
-    }
-
-    if (enableChanged || hp_f.changed())
-    {
-      delayFilterL.setHighpass(0, hp_f, 0.7071f);
-      delayFilterR.setHighpass(0, hp_f, 0.7071f);
-      filterChanged = true;
-    }
-    
-    if (enableChanged || lp_f.changed())
-    {
-      delayFilterL.setLowpass(1, lp_f, 0.7071f);
-      delayFilterR.setLowpass(1, lp_f, 0.7071f);
-      filterChanged = true;
-    }
-
-    if (enableChanged || in_l.changed()) delayFeedbackL.gain(0, in_l);
-    if (enableChanged || in_r.changed()) delayFeedbackR.gain(0, in_r);
-
-    float fbk = powf(feedback, fb_x);
-    bool feedbackChanged = enableChanged || feedback.changed() || fb_x.changed() || fb_z.changed();
-    if (feedbackChanged || fb_ll.changed()) delayFeedbackL.gain(1, (fbk * fb_ll) + fb_z);
-    if (feedbackChanged || fb_lr.changed()) delayFeedbackR.gain(2, (fbk * fb_lr) + fb_z);
-    if (feedbackChanged || fb_rl.changed()) delayFeedbackL.gain(2, (fbk * fb_rl) + fb_z);
-    if (feedbackChanged || fb_rr.changed()) delayFeedbackR.gain(1, (fbk * fb_rr) + fb_z);
-
-    if (filterChanged)
-    {
-      delayFilterL.begin();
-      delayFilterR.begin();
-    }    
-  }
-  else
-  {
-    delayFeedbackL.gain(0, 0.0f);
-    delayFeedbackL.gain(1, 0.0f);
-    delayFeedbackL.gain(2, 0.0f);
-    delayFeedbackR.gain(0, 0.0f);
-    delayFeedbackR.gain(1, 0.0f);
-    delayFeedbackR.gain(2, 0.0f);
-
-    delayMixerL.gain(0, 1.0f);
-    delayMixerR.gain(0, 1.0f);
-    delayMixerL.gain(1, 0.0f);
-    delayMixerR.gain(1, 0.0f);
-    delayMixerL.gain(2, 0.0f);
-    delayMixerR.gain(2, 0.0f);
-  }
-
+  if (enableChanged || time.changed()) stereodelay.time(time);
+  if (enableChanged || repeat.changed()) stereodelay.repeat(repeat);
+  if (enableChanged || drive.changed()) stereodelay.drive(drive);
+  if (enableChanged || freq.changed() || f_q.changed() || f_dr.changed() || f_lo.changed() || f_ba.changed() || f_hi.changed()) stereodelay.filter(freq, f_q, f_dr, f_lo, f_ba, f_hi);
+  if (enableChanged || rate.changed()) stereodelay.rate(rate);
+  if (enableChanged || depth.changed()) stereodelay.depth(depth);
+  if (enableChanged || spread.changed()) stereodelay.spread(spread);
+  if (enableChanged || wet.changed()) stereodelay.wet(wet);
+  if (enableChanged || dry.changed()) stereodelay.dry(dry);    
+  if (enableChanged) stereodelay.enable(enable);
 });
 
 
 EPARAMS(sonic)
 {
   Parameter("listen", Parameter::PT_Enum, 3.0f, 0.0f, 3.0f, 1.0f, (const char*[]){"low", "mid", "hi", "out"}),
-  Parameter("low_mid", Parameter::PT_Float, 0.2f),
-  Parameter("mid_high", Parameter::PT_Float, 0.6f),
-  Parameter("l_comp", Parameter::PT_Float, 0.6f),
-  Parameter("m_comp", Parameter::PT_Float, 0.4f),
-  Parameter("h_comp", Parameter::PT_Float, 0.6f),
-  Parameter("l_out", Parameter::PT_Float, 0.5f),
-  Parameter("m_out", Parameter::PT_Float, 0.5f),
-  Parameter("h_out", Parameter::PT_Float, 0.55f),
+  Parameter("low_mid", Parameter::PT_Float, 0.6f),
+  Parameter("mid_high", Parameter::PT_Float, 0.4f),
+  Parameter("l_comp", Parameter::PT_Float, 0.5f),
+  Parameter("m_comp", Parameter::PT_Float, 0.5f),
+  Parameter("h_comp", Parameter::PT_Float, 0.5f),
+  Parameter("l_out", Parameter::PT_Float, 0.4f),
+  Parameter("m_out", Parameter::PT_Float, 0.4f),
+  Parameter("h_out", Parameter::PT_Float, 0.4f),
   Parameter("attack", Parameter::PT_Float, 0.5f),
   Parameter("release", Parameter::PT_Float, 0.5f),
-  Parameter("s_width", Parameter::PT_Float, 0.65f),
-  Parameter("swap", Parameter::PT_Bool, 0),
-  Parameter("enable", Parameter::PT_Bool, true),
+  Parameter("width", Parameter::PT_Float, 0.5f),
+  Parameter("enable", Parameter::PT_Bool, false),
 };
 EFFECT(sonic)
 {
@@ -1030,132 +494,38 @@ EFFECT(sonic)
   Parameter& hOut = e[i++];
   Parameter& attack = e[i++];
   Parameter& release = e[i++];
-  Parameter& sWidth = e[i++];
-  Parameter& swap = e[i++];
+  Parameter& width = e[i++];
   Parameter& enable = e[i++];
 
-  multiband.parameters(enable ? (int)listen : 4, lowMid, midHigh, lComp, mComp, hComp, lOut, mOut, hOut, attack, release, sWidth, swap);
+  sonic.parameters(enable ? (int)listen : 4, lowMid, midHigh, lComp, mComp, hComp, lOut, mOut, hOut, attack, release, width, false);
 });
 
 
 EPARAMS(cab_sim)
 {
-  Parameter("hp_f", Parameter::PT_Float, 280.0f, 50.0f, 800.0f, 10.0f),
-  Parameter("pk_f", Parameter::PT_Float, 1300.0f, 800.0f, 1600.0f, 25.0f),
-  Parameter("pk_g", Parameter::PT_Float, -14.0f, -18.0f, 18.0f, 0.5f),
-  Parameter("l1_f", Parameter::PT_Float, 3500.0f, 3000.0f, 15000.0f, 250.0f),
-  Parameter("l1_q", Parameter::PT_Float, 1.4, 0.5f, 3.5f, 0.05f),  
-  Parameter("l2_f", Parameter::PT_Float, 14000.0f, 3000.0f, 15000.0f, 250.0f),
-  Parameter("l2_q", Parameter::PT_Float, 0.7, 0.5f, 3.5f, 0.05f),  
-  Parameter("size", Parameter::PT_Float, 0.20f),
-  Parameter("damping", Parameter::PT_Float, 0.8f),
-  Parameter("delay", Parameter::PT_Float, 6.5f, 0.0f, 200.0f, 0.01f),
-  Parameter("direct", Parameter::PT_Float, 2.0f, 0.0f, 5.0f, 0.05f),
-  Parameter("room", Parameter::PT_Float, 0.17f),
+  Parameter("direct", Parameter::PT_Float, 1.0f),
+  Parameter("size", Parameter::PT_Float, 0.5f),
+  Parameter("room", Parameter::PT_Float, 0.5f),
   Parameter("enable", Parameter::PT_Bool, true),
 };
 EFFECT(cab_sim)
 {
   int i = 0;
-  Parameter& hp_f = e[i++];
-  Parameter& pk_f = e[i++];
-  Parameter& pk_g = e[i++];
-  Parameter& l1_f = e[i++];
-  Parameter& l1_q = e[i++]; 
-  Parameter& l2_f = e[i++];
-  Parameter& l2_q = e[i++]; 
-  Parameter& size = e[i++];
-  Parameter& damping = e[i++];
-  Parameter& delay = e[i++];
   Parameter& direct = e[i++];
+  Parameter& size = e[i++];
   Parameter& room = e[i++];
   Parameter& enable = e[i++];
 
   bool enableChanged = enable.changed();
-  bool filterChanged = false;
-  
-  if (enableChanged)
-  {
-    cabSimL.doClassInit();
-    cabSimR.doClassInit();
-    filterChanged = true;
-  }
 
-  if (enable)
-  {
-    if (enableChanged)
-    {
-      roomFilter.doClassInit();
-      roomFilter.setHighpass(0, 350.0f, 0.7071f);
-      roomFilter.setLowpass(1, 12000.0f, 0.7071f);
-      roomFilter.begin();
-    }
-    
-    if (enableChanged || hp_f.changed())
-    {
-      cabSimL.setHighpass(0, hp_f, 0.7071f);
-      cabSimR.setHighpass(0, hp_f, 0.7071f);
-      filterChanged = true;
-    }
-
-    if (enableChanged || pk_f.changed() || pk_g.changed())
-    {
-      setPeak(cabSimL, 1, pk_f, pk_g, 0.5f);
-      setPeak(cabSimR, 1, pk_f, pk_g, 0.5f);
-      filterChanged = true;
-    }
-
-    if (enableChanged || l1_f.changed() || l1_q.changed())
-    {
-      cabSimL.setLowpass(2, l1_f, l1_q);
-      cabSimR.setLowpass(2, l1_f, l1_q);
-      filterChanged = true;
-    }
-
-    if (enableChanged || l2_f.changed() || l2_q.changed())
-    {
-      cabSimL.setLowpass(3, l2_f, l2_q);
-      cabSimR.setLowpass(3, l2_f, l2_q);
-      filterChanged = true;
-    }
-
-    if (enableChanged || size.changed()) roomReverb.roomsize(size);
-    if (enableChanged || damping.changed()) roomReverb.damping(damping);
-    if (enableChanged || delay.changed())
-    {
-      roomDelayL.delay(delay);
-      roomDelayR.delay(delay * 0.75f);
-    }
-
-    if (enableChanged || direct.changed())
-    {
-      cabSimMixerL.gain(0, direct);
-      cabSimMixerR.gain(0, direct);
-    }
-
-    if (enableChanged || room.changed())
-    {
-      cabSimMixerL.gain(1, room * 0.75f);
-      cabSimMixerR.gain(1, room);
-    }
-  }
-  else
-  {
-    cabSimMixerL.gain(0, 1.0f);
-    cabSimMixerL.gain(1, 0.0f);
-    cabSimMixerR.gain(0, 1.0f);
-    cabSimMixerR.gain(1, 0.0f);  
-  }
-
-  if (filterChanged)
-  {
-    cabSimL.begin();
-    cabSimR.begin();
-  }
+  if (enableChanged || direct.changed()) cabsim.direct(direct);
+  if (enableChanged || size.changed()) cabsim.size(size);
+  if (enableChanged || room.changed()) cabsim.room(room);
+  if (enableChanged) cabsim.enable(enable);
 });
 
-/**********************************************************************************************************************************/
 
+/**********************************************************************************************************************************/
 
 
 
@@ -1167,6 +537,7 @@ typedef enum
   r_set_value,
   r_binding,
   r_changed_value,
+  r_tuner,
 } r_state_t;
 
 r_state_t _r_state;
@@ -1174,13 +545,13 @@ r_state_t _r_prev;
 elapsedMillis _lastStateChange;
 unsigned long _changeTimeout = 0;
 
-void displayEffectName(Effect* effect = nullptr)
+FLASHMEM void displayEffectName(Effect* effect = nullptr)
 {
   if (effect == nullptr) effect = Effect::current();
   print(effect->name());
 }
 
-void displayParamName(Effect* effect = nullptr, Parameter* param = nullptr)
+FLASHMEM void displayParamName(Effect* effect = nullptr, Parameter* param = nullptr)
 {
   char buf[32];
   if (effect == nullptr) effect = Effect::current();
@@ -1189,7 +560,7 @@ void displayParamName(Effect* effect = nullptr, Parameter* param = nullptr)
   print(buf);
 }
 
-void displayParamValue(Effect* effect = nullptr, Parameter* param = nullptr)
+FLASHMEM void displayParamValue(Effect* effect = nullptr, Parameter* param = nullptr)
 {
   char buf[32];
   if (effect == nullptr) effect = Effect::current();
@@ -1198,7 +569,7 @@ void displayParamValue(Effect* effect = nullptr, Parameter* param = nullptr)
   print(buf);
 }
 
-bool resetEffect(const char* name)
+FLASHMEM bool resetEffect(const char* name)
 {
   Effect *e = Effect::effect(name);
   if (e == nullptr) return false;
@@ -1208,7 +579,7 @@ bool resetEffect(const char* name)
   return true;
 }
 
-bool updateEffect(const char* name, int n, float values[])
+FLASHMEM bool updateEffect(const char* name, int n, float values[])
 {
   Effect *e = Effect::effect(name);
   if (e == nullptr) return false;
@@ -1219,11 +590,13 @@ bool updateEffect(const char* name, int n, float values[])
   return true;
 }
 
-void setState(short newState)
+FLASHMEM void setState(short newState)
 {
   _changeTimeout = 0;
-  _lastStateChange = 0;  
-  
+  _lastStateChange = 0;
+
+  clear();
+
   switch (newState)
   {
     case r_select_effect:
@@ -1243,20 +616,28 @@ void setState(short newState)
     case r_changed_value:
       _changeTimeout = 2500;
       break;
+    case r_tuner:
+      if (_r_state != r_binding && _r_state != r_changed_value)
+      {
+        _changeTimeout = 750;
+      } else newState = _r_state;
+      break;
     default: return;
   }
-
-  if (_r_state != (r_state_t)newState) _r_prev = _r_state;
-
+  
+  if (_r_state != (r_state_t)newState) 
+  {
+    _r_prev = _r_state;
+  }
   _r_state = (r_state_t)newState;
 }
 
-void revertState()
+FLASHMEM void revertState()
 {
   setState(_r_prev);
 }
 
-bool updateParam(const char* name, const char* param, float value)
+FLASHMEM bool updateParam(const char* name, const char* param, float value)
 {
   Effect *e = Effect::effect(name);
   if (e == nullptr) return false;
@@ -1266,18 +647,18 @@ bool updateParam(const char* name, const char* param, float value)
   
   p->change(value);
   e->update();
-  displayParamValue(e, p);
   setState(r_changed_value);
+  displayParamValue(e, p);
 
   return true;
 }
 
-bool binding()
+FLASHMEM bool binding()
 {
   return _r_state == r_binding;
 }
 
-void checkStateExpiration()
+FLASHMEM void checkStateExpiration()
 {
   if (_changeTimeout > 0 && _lastStateChange > _changeTimeout)
   {
@@ -1296,7 +677,7 @@ class IBindable
       _first = this;
     }
 
-    bool bind(const char* bname)
+    FLASHMEM bool bind(const char* bname)
     {
       if (bname == nullptr) return false;
       
@@ -1352,7 +733,7 @@ class IBindable
       return true;
     }
 
-    static bool bind(const char *name, const char* bname)
+    FLASHMEM static bool bind(const char *name, const char* bname)
     {
       if (name == nullptr || bname == nullptr) return false;
       
@@ -1368,7 +749,7 @@ class IBindable
       return false;
     }
 
-    static void saveAll(Print *p)
+    FLASHMEM static void saveAll(Print *p)
     {
       if (p == nullptr) return;
       
@@ -1380,11 +761,11 @@ class IBindable
       }
     }
 
-    bool bound() { return _effect != nullptr && _param != nullptr; }
+    FLASHMEM bool bound() { return _effect != nullptr && _param != nullptr; }
 
-    float value() { return bound() ? _param->value() : 0.0f; }
+    FLASHMEM float value() { return bound() ? _param->value() : 0.0f; }
 
-    void print(Print *p)
+    FLASHMEM void print(Print *p)
     {
       if (bound()) p->printf("%s=\"%s.%s\";\r\n", _name, _effect->name(), _param->name());
     }
@@ -1394,7 +775,7 @@ class IBindable
     Effect *_effect = nullptr;
     Parameter *_param = nullptr;
 
-    const char *name() { return _name; }
+    FLASHMEM const char *name() { return _name; }
     virtual void onBind() {}
 
   private:
@@ -1415,12 +796,12 @@ class Button: public IBindable
       _pin = pin;
     }
 
-    void begin()
+    FLASHMEM void begin()
     {
       pinMode(_pin, INPUT_PULLUP);
     }
 
-    void update()
+    FLASHMEM void update()
     {
       _bounce.update();
 
@@ -1436,8 +817,8 @@ class Button: public IBindable
         {
           _param->toggle();
           _effect->update();
-          displayParamValue(_effect, _param);
           setState(r_changed_value);
+          displayParamValue(_effect, _param);
         }
       }
       if (_bounce.read() == LOW)
@@ -1488,7 +869,7 @@ class Potentiometer: public IBindable
       _pin = pin;
     }
 
-    void begin()
+    FLASHMEM void begin()
     {
       //pinMode(_pin, INPUT_DISABLE);
 
@@ -1499,7 +880,7 @@ class Potentiometer: public IBindable
       //_f.begin(50.0f, 2.0f, 0.1f);
     }
 
-    void update()
+    FLASHMEM void update()
     {
       if (_lastUpdate < 20) return;
       _lastUpdate = 0;
@@ -1608,7 +989,7 @@ unsigned long _lastCw;
 unsigned long _lastCcw;
 unsigned long _lastClick;
 
-void cw()
+FLASHMEM void cw()
 {
   unsigned long now = millis();
   if ((now - _lastCcw) < _debounce) return;
@@ -1637,11 +1018,13 @@ void cw()
     case r_binding:
     case r_changed_value:
       revertState();
-      break;      
+      break;
+    case r_tuner:
+      break;    
   }
 }
 
-void ccw()
+FLASHMEM void ccw()
 {
   unsigned long now = millis();
   if ((now - _lastCw) < _debounce) return;
@@ -1671,10 +1054,12 @@ void ccw()
     case r_changed_value:
       revertState();
       break;
+    case r_tuner:
+      break;
   }      
 }
 
-void shortClick()
+FLASHMEM void shortClick()
 {
   unsigned long now = millis();
   if ((now - _lastClick) < _debounce) return;
@@ -1698,10 +1083,12 @@ void shortClick()
     case r_changed_value:
       revertState();
       break;
+    case r_tuner:
+      break;
   }
 }
 
-void longClick()
+FLASHMEM void longClick()
 {
   switch (_r_state)
   {
@@ -1714,20 +1101,21 @@ void longClick()
       break;
     case r_binding:
     case r_changed_value:
+    case r_tuner:
       break;
   }
 }
 
 
 char _presetName[64];
-void printPreset(Print *p)
+FLASHMEM void printPreset(Print *p)
 {
   Effect::saveAll(p);
   IBindable::saveAll(p);
   p->printf("presetName(\"%s\");\r\n", _presetName);  
 }
 
-void savePreset(const char* fname)
+FLASHMEM void savePreset(const char* fname)
 {
   if (SD.exists(fname))
   {
@@ -1746,7 +1134,7 @@ void savePreset(const char* fname)
   }
 }
 
-void presetName(const char *name)
+FLASHMEM void presetName(const char *name)
 {
   if (name == nullptr) return;
   
@@ -1756,7 +1144,16 @@ void presetName(const char *name)
   print(_presetName);
 }
 
-void UI_Setup()
+
+FLASHMEM void displayTuner(float freq, int note, int semitone, float cents)
+{
+  if (_r_state == r_binding) return;
+  setState(r_tuner);
+  
+  displayTunerHW(freq, note, semitone, cents);
+}
+
+FLASHMEM void UI_Setup()
 {
   #ifdef PIN_ENC_A
   pinMode(PIN_ENC_A, INPUT_PULLUP);
@@ -1788,7 +1185,7 @@ void UI_Setup()
 }
 
 unsigned long last = 0;
-void UI_Loop()
+FLASHMEM void UI_Loop()
 {
 #ifdef PIN_ENC_A
   long newPos = (knob.read() + 2) / 4;
