@@ -1,6 +1,7 @@
 #ifndef _effect_h
 #define _effect_h
 
+#include <SD.h>
 #include <Print.h>
 const float _fbands[] = { 50.0f,   56.0f,   63.0f,   71.0f,   80.0f,   89.0f,   100.0f,   112.0f,   125.0f,   140.0f,   158.0f,   175.0f,   200.0f,   225.0f,   250.0f,   280.0f,   315.0f,   400.0f,   440.0f,
                           500.0f,  560.0f,  630.0f,  710.0f,  800.0f,  890.0f,  1000.0f,  1120.0f,  1250.0f,  1400.0f,  1580.0f,  1750.0f,  2000.0f,  2250.0f,  2500.0f,  2800.0f,  3150.0f,  4000.0f,  4400.0f,
@@ -60,7 +61,7 @@ class Parameter
       _lastval = -_value;      
     }
 
-    FLASHMEM bool stepChange(int steps)
+    bool stepChange(int steps)
     {
       switch (_type)
       {
@@ -143,7 +144,7 @@ class Parameter
       return _value != _lastval;
     }
 
-    FLASHMEM bool toggle()
+    bool toggle()
     {
       switch (_type)
       {
@@ -177,7 +178,7 @@ class Parameter
 
     operator float() const { return _type == PT_Freq ? _fbands[(int)_value] : _value; }
 
-    FLASHMEM const char *tos()
+    const char *tos()
     {
       int len = sizeof(_buf);
       switch (_type)
@@ -236,32 +237,32 @@ class Effect
       _params = params;
       _iparam = 0;
 
-      if (currentEffect == nullptr)
+      if (_currentEffect == nullptr)
       {
         _next = this;
         _prev = this;
       }
       else
       {
-        currentEffect->_prev->_next = this;
-        _prev = currentEffect->_prev;
-        currentEffect->_prev = this;
-        _next = currentEffect;
+        _currentEffect->_prev->_next = this;
+        _prev = _currentEffect->_prev;
+        _currentEffect->_prev = this;
+        _next = _currentEffect;
       }
-      currentEffect = this;
+      _currentEffect = this;
     }
 
-    FLASHMEM Parameter *param()
+    Parameter *param()
     {
       return &_params[_iparam];
     }
 
-    FLASHMEM Parameter& operator [](int i)
+    Parameter& operator [](int i)
     {
       return _params[i < 0 || i >= _nparams ? _iparam : i ];
     }
 
-    FLASHMEM Parameter& operator [](const char* name)
+    Parameter& operator [](const char* name)
     {
       for (int i = 0; i < _nparams; i++)
       {
@@ -270,7 +271,7 @@ class Effect
       return _params[_iparam];
     }
 
-    FLASHMEM Parameter *param(const char* name)
+    Parameter *param(const char* name)
     {
       if (name != nullptr)
       {
@@ -282,7 +283,7 @@ class Effect
       return nullptr;
     }
 
-    FLASHMEM void nextParam()
+    void nextParam()
     {
       int cp = _iparam;
       do
@@ -335,7 +336,7 @@ class Effect
 
     const char *name() { return _name; }
 
-    FLASHMEM Print *save(Print *p)
+    Print *save(Print *p)
     {
       p->printf("%s.reset();\r\n", _name);
       for (int i = 0; i < _nparams; i++)
@@ -348,7 +349,7 @@ class Effect
       return p;
     }
 
-    FLASHMEM Print *dump(Print *p)
+    Print *dump(Print *p)
     {
       p->printf("[%s]\r\n", _name);
       for (int i = 0; i < _nparams; i++)
@@ -364,71 +365,88 @@ class Effect
       update();
     }
 
-    static Effect *current() { return currentEffect; }
+    static Effect *current() { return _currentEffect; }
 
     static void next()
     {
-      if (currentEffect == nullptr) return;
-      currentEffect = currentEffect->_next;
+      if (_currentEffect == nullptr) return;
+      _currentEffect = _currentEffect->_next;
     }
 
     static void prev()
     {
-      if (currentEffect == nullptr) return;
-      currentEffect = currentEffect->_prev;
+      if (_currentEffect == nullptr) return;
+      _currentEffect = _currentEffect->_prev;
     }
 
     static Effect* effect(const char* name)
     {
       if (name == nullptr) return nullptr;
-      if (currentEffect == nullptr) return nullptr;
-      Effect *pe = currentEffect;
+      if (_currentEffect == nullptr) return nullptr;
+      Effect *pe = _currentEffect;
       do
       {
         if (strncmp(name, pe->_name, 32) == 0) return pe;
         pe = pe->_next;
-      } while (pe != currentEffect);
+      } while (pe != _currentEffect);
       return nullptr;      
+    }
+
+    static void reset(const char* name)
+    {
+        Effect *e = effect(name);
+        if (e != nullptr) e->reset();
     }
 
     static void saveAll(Print *p)
     {
-      if (currentEffect == nullptr) return;
-      Effect *pe = currentEffect;
+      if (_currentEffect == nullptr) return;
+      Effect *pe = _currentEffect;
       do
       {
         pe->save(p);
         pe = pe->_next;
-      } while (pe != currentEffect);      
+      } while (pe != _currentEffect);      
     }
 
     static void dumpAll(Print *p)
     {
-      if (currentEffect == nullptr) return;
-      Effect *pe = currentEffect;
+      if (_currentEffect == nullptr) return;
+      Effect *pe = _currentEffect;
       do
       {
         pe->dump(p);
         pe = pe->_next;
-      } while (pe != currentEffect);      
+      } while (pe != _currentEffect);      
+    }
+
+    static void resetAll()
+    {
+      if (_currentEffect == nullptr) return;
+      Effect *pe = _currentEffect;
+      do
+      {
+        pe->reset();
+        pe = pe->_next;
+      } while (pe != _currentEffect);      
     }
 
     static void begin()
     {
-      if (currentEffect == nullptr) return;
-      Effect *pe = currentEffect;
+      if (_currentEffect == nullptr) return;
+      Effect *pe = _currentEffect;
       do
       {
         pe->update();
         pe = pe->_next;
-      } while (pe != currentEffect);
+      } while (pe != _currentEffect);
     }
 
   private:
     Effect *_prev;
     Effect *_next;
 
-    static Effect *currentEffect;
+    static Effect *_currentEffect;
 
     const char *_name;
     void(*_update)(Effect &);
@@ -438,7 +456,7 @@ class Effect
     Parameter *_params;
 };
 
-Effect *Effect::currentEffect;
+Effect *Effect::_currentEffect;
 
 #define EPARAMS(_n_) Parameter _efxp_ ## _n_[] =
 #define EFFECT(_n_) Effect _efx_ ## _n_(#_n_, sizeof(_efxp_ ## _n_) / sizeof(_efxp_ ## _n_[0]), _efxp_ ## _n_, [](Effect &e)-> FLASHMEM void 

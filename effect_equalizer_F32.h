@@ -85,8 +85,8 @@ class AudioEffectEqualizer_F32 :
     audio_block_f32_t *inputQueueArray[1];
     bool _enable = false;
 
-    LF1p1zBiquad _f1;
-    LFBiquad _f2;
+    HQ1p1zBiquad _f1;
+    HQBiquad _f2;
     CascadeBiquad<7> _f3;
 
     float _g1 = 0.0f;

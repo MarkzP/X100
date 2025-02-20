@@ -6,13 +6,13 @@
 void Main()
 {
 	var bins = new int[0];
-    var freqs = new int[0];
+    var freqs = new float[0];
 	var levelIn = new float[0];
 
-	var amplitude = 0.0f;//-0.615f;
-	bins = Enumerable.Range(26, 175).ToArray();
+	var amplitude = -3.0f;//-0.615f;
+	bins = Enumerable.Range(0, 149).ToArray();
 	freqs = bins.Select(i => logFreq(i)).ToArray();
-	levelIn = Enumerable.Range(0, bins.Length).Select(i => amplitude).ToArray();
+	levelIn = Enumerable.Range(0, freqs.Length).Select(i => amplitude).ToArray();
 	
 	var levelOutsL = new float[levelIn.Length];
 	var levelOutsR = new float[levelIn.Length];
@@ -33,41 +33,40 @@ void Main()
 			{
 				continue;
 			}
-			port.ReadTimeout = 1000;
+			port.ReadTimeout = 500;
 			port.Write("stats();");
-			Thread.Sleep(20);
+			Thread.Sleep(100);
 			var report = port.ReadExisting();
-			if (report.Contains("Proc"))
+			if (report.Contains("32="))
 			{
+				port.ReadTimeout = 5000;
 				port.Write("setVolume(0);setInput(0);printLevels(0);printTuner(0);");
-				Thread.Sleep(20);
+				Thread.Sleep(100);
 				port.ReadExisting();
 
 				for (int i = 0; i < levelIn.Length && i < freqs.Length; i++)
 				{
-					if (i == 0)
+					levelOutsL[i] = -72.0f;
+					levelOutsR[i] = -72.0f;
+					for (int j = 0; j < 3; j++)
 					{
-						levelOutsL[i] = -80.0f;
-						levelOutsR[i] = -80.0f;
-						continue;
-					}
+						var msg = $"doTestTone({freqs[i]},{dbToUnit(levelIn[i]).ToString(System.Globalization.CultureInfo.InvariantCulture)});";
+						port.Write(msg);
 
-					var msg = $"doTestTone({freqs[i]},{dbToUnit(levelIn[i]).ToString(System.Globalization.CultureInfo.InvariantCulture)});";
-					port.Write(msg);
-
-					var resp = port.ReadLine();					
-					try
-					{
-						var parts = resp.Replace("nan", "NaN").Replace("-NaN", "NaN").Split(',').Select(s => s.Trim());
-						levelOutsL[i] = unitToDb(float.Parse(parts.First(), System.Globalization.CultureInfo.InvariantCulture));
-						levelOutsR[i] = unitToDb(float.Parse(parts.Last(), System.Globalization.CultureInfo.InvariantCulture));
+						var resp = port.ReadLine();					
+						try
+						{
+							var parts = resp.Replace("nan", "NaN").Replace("-NaN", "NaN").Split(',').Select(s => s.Trim());
+							levelOutsL[i] = Math.Max(levelOutsL[i], unitToDb(float.Parse(parts.First(), System.Globalization.CultureInfo.InvariantCulture)) - levelIn[i]);
+							levelOutsR[i] = Math.Max(levelOutsR[i], unitToDb(float.Parse(parts.Last(), System.Globalization.CultureInfo.InvariantCulture)) - levelIn[i]);
+						}
+						catch
+						{
+							resp.Dump();
+							throw;
+						}
 					}
-					catch
-					{
-						resp.Dump();
-						throw;
-					}
-					Console.WriteLine($"f={freqs[i]},i={levelIn[i]} => {levelOutsL[i]}, {levelOutsR[i]}");
+					Console.WriteLine($"i={i}: f={freqs[i]:F1}, dB={levelIn[i]:F1} => {levelOutsL[i]:F1}, {levelOutsR[i]:F1}");
 				}
 
 				port.Write("setVolume(1);setInput(1);");
@@ -75,7 +74,7 @@ void Main()
 		}
 	}
 
-	var chart = Enumerable.Range(0, bins.Length).Chart(x => freqs[x])
+	var chart = Enumerable.Range(0, freqs.Length).Chart(x => freqs[x])
 		.AddYSeries(x => levelOutsL[x], LINQPad.Util.SeriesType.Spline)
 		.AddYSeries(x => levelOutsR[x], LINQPad.Util.SeriesType.Spline)
 		.ToWindowsChart();
@@ -83,7 +82,7 @@ void Main()
 	var area = chart.ChartAreas.First();
 	var xaxis = area.AxisX;
 
-	xaxis.Minimum = 100.0;
+	xaxis.Minimum = 10.0;
 	xaxis.Maximum = 20000.0;
 	xaxis.RoundAxisValues();
 	
@@ -93,12 +92,13 @@ void Main()
 	xaxis.MinorGrid.Enabled = true;
 	xaxis.MinorGrid.LineColor = Color.LightGray;
 	xaxis.MinorGrid.Interval = 1.0;
-
+	
 	var yaxis = area.AxisY;
 	yaxis.Minimum = -72.0;
-	yaxis.Maximum = 15.0;
+	yaxis.Maximum = 12.0;
 	yaxis.Interval = 6.0;
 	
+	area.AxisX2.Enabled = System.Windows.Forms.DataVisualization.Charting.AxisEnabled.False;
 	area.AxisY2.Enabled = System.Windows.Forms.DataVisualization.Charting.AxisEnabled.False;
 	
 	chart.Dump();
@@ -110,4 +110,6 @@ float dbToUnit(float db) => (float)Math.Pow(10.0f, db / 20.0f);
 
 float unitToDb(float unit) => unit < 5.011872E-07f ? -126.0f : 20.0f * (float)Math.Log10(unit);
 
-int logFreq(int i) => (int)Math.Round(19.61526778504022638394310269766 * Math.Pow(1.0352649238413775043477881942112, (double)i));
+
+float logFreq(int i) => i == 0 ? 10.0f : (float)(24.0 * Math.Pow(1.05, (double)(i - 10)));
+//int logFreq(int i) => (int)Math.Round(19.61526778504022638394310269766 * Math.Pow(1.0352649238413775043477881942112, (double)i));

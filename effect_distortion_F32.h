@@ -6,6 +6,8 @@
 #include "components_F32.h"
 #include "arm_math.h"
 
+#define INTERPOLATION  3
+
 class AudioEffectDistortion_F32 : public AudioStream_F32
 {
     //GUI: inputs:1, outputs:1  //this line used for automatic generation of GUI node
@@ -20,8 +22,7 @@ class AudioEffectDistortion_F32 : public AudioStream_F32
       _preFilter1(settings.sample_rate_Hz),
       _preFilter2(settings.sample_rate_Hz),
       _postFilter1(settings.sample_rate_Hz),
-      _postFilter2(settings.sample_rate_Hz),
-      _noiseFilter(settings.sample_rate_Hz)
+      _postFilter2(settings.sample_rate_Hz)
     {
     }
 
@@ -45,8 +46,6 @@ class AudioEffectDistortion_F32 : public AudioStream_F32
       tone();
       level();
 
-      _noiseFilter.reset().setHighpass(13000.0f).begin();
-
       return _multirate;
     }
 
@@ -60,7 +59,6 @@ class AudioEffectDistortion_F32 : public AudioStream_F32
       gain = gain < 0.0f ? 0.0f : gain > 1.0f ? 1.0f : gain;
       gain = (powf(gain, 1.5f) * 495.0f) + 5.0f;
       gain *= (_multirate ? (float)_interpolation : 1.0f);
-
       _gain = gain;
     }
 
@@ -103,6 +101,7 @@ class AudioEffectDistortion_F32 : public AudioStream_F32
 
     void level(float level = 1.0f)
     {
+      level = level < 0.0f ? 0.0f : level > 1.0f ? 1.0f : level;
       _level = (powf(level, 1.5f) * 0.3f) + 0.03f;
     }
 
@@ -130,12 +129,6 @@ class AudioEffectDistortion_F32 : public AudioStream_F32
         arm_fir_interpolate_f32(&_interpolator, block->data, _interpolated, block->length);
         len *= _interpolation;
         p = _interpolated;
-
-        for (int i = 0; i < len; i++)
-        {
-          _noise[i] = (float)rand() * (_dither / (float)RAND_MAX);
-        }
-        _noiseFilter.filterArray(_noise, _noise, len);
       }
 
       float pcomp = _pcomp;
@@ -168,8 +161,6 @@ class AudioEffectDistortion_F32 : public AudioStream_F32
 
         sample *= (fabsf(sample) + skew) / (square(sample) + skewm1 * fabsf(sample) + 1.0f);
 
-        sample += _noise[i];
-
         p[i] = sample;
       }
 
@@ -195,17 +186,22 @@ class AudioEffectDistortion_F32 : public AudioStream_F32
     float _ncurve = 0.0f;
     float _skew = 1.0f;
     float _level = 10.0f;
-    float _dither = 0.33f;
-    LFBiquad  _preFilter1;
+    float _dither = 0.5f;
+    HQBiquad  _preFilter1;
     CascadeBiquad<1> _preFilter2;
-    LF1p1zBiquad  _postFilter1;
+    HQ1p1zBiquad  _postFilter1;
     CascadeBiquad<4> _postFilter2;
     CascadeBiquad<1> _noiseFilter;
 
-    static constexpr int _interpolation = 5;
+    static constexpr int _interpolation = INTERPOLATION;
+#if INTERPOLATION==5
+    static constexpr int _int_numtaps = 125;
+#else
+    static constexpr int _int_numtaps = 39;
+#endif
     static constexpr int _raw_buffer_size = 128;
     static constexpr int _int_buffer_size = _raw_buffer_size * _interpolation;
-    static constexpr int _int_numtaps = 125;
+
     static constexpr float _oneThird = 1.0f / 3.0f;
     static constexpr float _threeHalfs = 3.0f / 2.0f;
     static constexpr float _twoThirds = 2.0f / 3.0f;
@@ -213,7 +209,6 @@ class AudioEffectDistortion_F32 : public AudioStream_F32
     arm_fir_interpolate_instance_f32 _interpolator;
     arm_fir_decimate_instance_f32 _decimator;
     float _interpolated[_int_buffer_size];
-    float _noise[_int_buffer_size];
     float _int_state[(_int_numtaps / _interpolation) + _raw_buffer_size - 1];
     float _decim_state[_int_numtaps + _int_buffer_size - 1];
     bool _multirate = false;
@@ -225,18 +220,18 @@ class AudioEffectDistortion_F32 : public AudioStream_F32
 
     inline float square(float x)
     {
-      //double d = x; return (float)(d * d);
-      return x * x;
+      double d = x; return (float)(d * d);
     }
 
     inline float cube(float x)
     {
       double d = x; return (float)(d * d * d);
-      //return x * x * x;
     }
 
-    float _int_coeffs[_int_numtaps] = {
-
+#if INTERPOLATION==5
+    //https://www.arc.id.au/FilterDesign.html
+    //Fs=220500, Fb=16431, M=125, Att=69 => dF/2=3777, fc=20208
+    float _int_coeffs[125] = {
       -0.000029,
       -0.000017,
       0.000014,
@@ -362,8 +357,56 @@ class AudioEffectDistortion_F32 : public AudioStream_F32
       0.000014,
       -0.000017,
       -0.000029
-
     };
+#else
+    //https://www.arc.id.au/FilterDesign.html
+    //Fs=132300, Fb=17800, M=39, Att=50 => dF/2=5091
+
+
+    //Fs=132300, Fb=18000, M=39, Att=46 => dF/2=5091
+    float _int_coeffs[39] = {
+      -0.000699, 
+      0.000674, 
+      0.002866, 
+      0.003856, 
+      0.001462, 
+      -0.004241, 
+      -0.009584, 
+      -0.009023, 
+      0.000325, 
+      0.014499, 
+      0.022985, 
+      0.015140, 
+      -0.010463, 
+      -0.040499, 
+      -0.050899, 
+      -0.020162, 
+      0.055369, 
+      0.154550, 
+      0.238980, 
+      0.272109, 
+      0.238980, 
+      0.154550, 
+      0.055369, 
+      -0.020162, 
+      -0.050899, 
+      -0.040499, 
+      -0.010463, 
+      0.015140, 
+      0.022985, 
+      0.014499, 
+      0.000325, 
+      -0.009023, 
+      -0.009584, 
+      -0.004241, 
+      0.001462, 
+      0.003856, 
+      0.002866, 
+      0.000674, 
+      -0.000699
+    };
+    #endif
 };
+
 
 #endif

@@ -27,30 +27,30 @@ class AudioEffectAutoWah_F32 :
       _svf.frequency(250.0f);
     }
 
-    void enable(bool enable = false)
+    FLASHMEM void enable(bool enable = false)
     {
       _enable = enable;
     }
 
-    void sensitivity(float sensitivity = 0.5f)
+    FLASHMEM void sensitivity(float sensitivity = 0.5f)
     {
       sensitivity = sensitivity < 0.0f ? 0.0f : sensitivity > 1.0f ? 1.0f : sensitivity;
       _sensitivity = ((sensitivity * 15.0f) + 5.0f) * _octave;
     }
 
-    void speed(float speed = 0.5f)
+    FLASHMEM void speed(float speed = 0.5f)
     {
       speed = speed < 0.0f ? 0.0f : speed > 1.0f ? 1.0f : speed;
       float s = ((1.0f - speed) * 1.8f) + 0.2f;
       _smooth = 1.0f - expf(-3.1699f / (_sample_rate_Hz * s));
     }
 
-    void wet(float wet)
+    FLASHMEM void wet(float wet)
     {
       _wet = wet < 0.0f ? 0.0f : wet > 1.0f ? 1.0f : wet;
     }
 
-    void dry(float dry)
+    FLASHMEM void dry(float dry)
     {
       _dry = dry < 0.0f ? 0.0f : dry > 1.0f ? 1.0f : dry;
     }
@@ -74,8 +74,8 @@ class AudioEffectAutoWah_F32 :
           float level = _d.detect(sample) * sensitivity;
           control += (level - control) * (level > control ? smooth : _decay);
           control = control < -_octave ? -_octave : control > _octave ? _octave : control;
-
-          sample = _svf.filter(sample, control);
+          _svf.control(control);
+          sample = _svf.filter(sample);
 
           block->data[i] = sample;
         }
@@ -94,7 +94,7 @@ class AudioEffectAutoWah_F32 :
     static constexpr float _decay = 0.005f;
 
     Detector _d;
-    StateVariableFilter _svf;
+    StateVariableFilter<4> _svf;
 
     bool _enable = false;
     float _control = 0.0f;

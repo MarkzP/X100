@@ -10,7 +10,7 @@ void Main()
 		.AddYSeries(x => hard(x), LINQPad.Util.SeriesType.Spline)
 		//.AddYSeries(x => saturation(x), LINQPad.Util.SeriesType.Spline)
 		.AddYSeries(x => cubic(x), LINQPad.Util.SeriesType.Spline)
-		//.AddYSeries(x => fifth(x), LINQPad.Util.SeriesType.Spline)
+		.AddYSeries(x => fifth(x), LINQPad.Util.SeriesType.Spline)
 		//.AddYSeries(x => nonlinear(x, 0.5f, 1.0f), LINQPad.Util.SeriesType.Spline)
 		.ToWindowsChart();
 		

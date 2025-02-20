@@ -7,72 +7,50 @@
 EPARAMS(preamp)
 {
   Parameter("level", Parameter::PT_Float, 0.5f),
+  Parameter("Output", Parameter::PT_Enum, 0.0f, 0.0f, 2.0f, 1.0f, (const char*[]){" hdr", " low", "high"}),
   Parameter("enable", Parameter::PT_Bool, true),
 };
 EFFECT(preamp)
 {
   int i = 0;
   Parameter& level = e[i++];
+  Parameter& output = e[i++];
   Parameter& enable = e[i++];
 
   bool enableChanged = enable.changed();
 
   if (enableChanged || level.changed()) preamp.level(level);
+  if (enableChanged || output.changed()) hdr.setOutput(output);
   if (enableChanged) preamp.enable(enable);
 });
 
 
-EPARAMS(gate)
+EPARAMS(envelope)
 {
-  Parameter("threshold", Parameter::PT_Float, -85.0f, -100.0f, 0.0f),
-  Parameter("attack", Parameter::PT_Float, 0.0f, 0.0f, 5.0f),
-  Parameter("release", Parameter::PT_Float, 3.0f, 0.0f, 5.0f),
-  Parameter("reduction", Parameter::PT_Float, -14.0f, -100.0f, 0.0f),
+  Parameter("open", Parameter::PT_Float, 0.5f),
+  Parameter("close", Parameter::PT_Float, 0.5f),
+  Parameter("attack", Parameter::PT_Float, 0.3f),
+  Parameter("release", Parameter::PT_Float, 0.0f),
+  //Parameter("sensitivity", Parameter::PT_Float, 0.5f),
   Parameter("enable", Parameter::PT_Bool, false),
 };
-EFFECT(gate)
+EFFECT(envelope)
 {
   int i = 0;
-  Parameter& threshold = e[i++];
+  Parameter& open = e[i++];
+  Parameter& close = e[i++];
   Parameter& attack = e[i++];
   Parameter& release = e[i++];
-  Parameter& reduction = e[i++];
-  Parameter& enable = e[i++];
-
-  dynamics.gate(threshold, attack, release, 6.0f, reduction, enable);
-});
-
-
-EPARAMS(compression)
-{
-  Parameter("threshold", Parameter::PT_Float, -40.0f, -100.0f, 0.0f),
-  Parameter("attack", Parameter::PT_Float, 0.01f, 0.0f, 1.0f, 0.01f),
-  Parameter("release", Parameter::PT_Float, 1.0f, 0.0f, 2.0f, 0.02f),
-  Parameter("ratio", Parameter::PT_Float, 6.0f, 0.1f, 10.0f, 0.1f),
-  Parameter("knee", Parameter::PT_Float, 12.0f, 0.0f, 20.0f, 0.5f),
-  Parameter("wet", Parameter::PT_Float, 0.5f),
-  Parameter("makeup", Parameter::PT_Float, 0.0f, -12.0f, 12.0f, 0.5f),
-  Parameter("headroom", Parameter::PT_Float, 0.0f, 0.0f, 24.0f, 0.5f),
-  Parameter("enable", Parameter::PT_Bool, false),
-};
-EFFECT(compression)
-{
-  int i = 0;
-  Parameter& threshold = e[i++];
-  Parameter& attack = e[i++];
-  Parameter& release = e[i++];
-  Parameter& ratio = e[i++];
-  Parameter& knee = e[i++];
-  Parameter& wet = e[i++];
-  Parameter& makeup = e[i++];
-  Parameter& headroom = e[i++];
+  //Parameter& sensitivity = e[i++];
   Parameter& enable = e[i++];
 
   bool enableChanged = enable.changed();
-
-  if (enableChanged || threshold.changed() || attack.changed() || release.changed() || ratio.changed() || knee.changed() || wet.changed()) dynamics.compression(threshold, attack, release, ratio, knee, wet, enable);
-  if (enableChanged || makeup.changed()) dynamics.makeupGain(enable ? makeup : 0.0f);
-  if (enableChanged || headroom.changed()) dynamics.autoMakeupGain(headroom, enable);
+  if (enableChanged || open.changed()) envelope.open(open);
+  if (enableChanged || close.changed()) envelope.close(close);
+  if (enableChanged || attack.changed()) envelope.attack(attack);
+  if (enableChanged || release.changed()) envelope.release(release);
+  //if (enableChanged || sensitivity.changed()) envelope.sensitivity(sensitivity);
+  if (enableChanged) envelope.enable(enable);
 });
 
 
@@ -100,6 +78,30 @@ EFFECT(auto_wah)
   if (enableChanged || dry.changed()) wah.dry(dry);
   if (enableChanged || wet.changed()) wah.wet(wet);
   if (enableChanged) wah.enable(enable);
+});
+
+
+EPARAMS(ota)
+{
+  Parameter("attack", Parameter::PT_Float, 0.0f),
+  Parameter("sensitivity", Parameter::PT_Float, 0.5f),
+  Parameter("output", Parameter::PT_Float, 0.5f),
+  Parameter("enable", Parameter::PT_Bool, false),  
+};
+EFFECT(ota)
+{
+  int i = 0;
+  Parameter& attack = e[i++];
+  Parameter& sensitivity = e[i++];
+  Parameter& output = e[i++];
+  Parameter& enable = e[i++];
+  
+  bool enableChanged = enable.changed();
+
+  if (enableChanged || attack.changed()) ota.attack(attack);
+  if (enableChanged || sensitivity.changed()) ota.sensitivity(sensitivity);
+  if (enableChanged || output.changed()) ota.output(output);
+  if (enableChanged) ota.enable(enable);
 });
 
 
@@ -134,6 +136,32 @@ EFFECT(distortion)
   if (enableChanged || tone.changed() || mid.changed()) distortion.tone(tone, mid);
   if (enableChanged || level.changed()) distortion.level(level);
   if (enableChanged) distortion.enable(enable);
+});
+
+
+EPARAMS(tonestack)
+{
+  Parameter("bass", Parameter::PT_Float, 0.5f),
+  Parameter("middle", Parameter::PT_Float, 0.5f),
+  Parameter("treble", Parameter::PT_Float, 0.5f),
+  Parameter("enable", Parameter::PT_Bool, true),
+};
+EFFECT(tonestack)
+{
+  int i = 0;
+  Parameter& bass = e[i++];
+  Parameter& middle = e[i++];
+  Parameter& treble = e[i++];
+  Parameter& enable = e[i++];
+
+  bool enableChanged = enable.changed();
+
+  if (enableChanged || bass.changed() || middle.changed() || treble.changed())
+  {
+    toneStack.setTone(bass, middle, treble);
+  }
+
+  if (enableChanged) toneStack.enable(enable);
 });
 
 
@@ -173,32 +201,6 @@ EFFECT(equalizer)
   if (enableChanged || g7.changed()) equalizer.eq(7, g7);
   if (enableChanged || level.changed()) equalizer.level(level);
   if (enableChanged) equalizer.enable(enable);
-});
-
-
-EPARAMS(tonestack)
-{
-  Parameter("bass", Parameter::PT_Float, 0.5f),
-  Parameter("middle", Parameter::PT_Float, 0.5f),
-  Parameter("treble", Parameter::PT_Float, 0.5f),
-  Parameter("enable", Parameter::PT_Bool, true),
-};
-EFFECT(tonestack)
-{
-  int i = 0;
-  Parameter& bass = e[i++];
-  Parameter& middle = e[i++];
-  Parameter& treble = e[i++];
-  Parameter& enable = e[i++];
-
-  bool enableChanged = enable.changed();
-
-  if (enableChanged || bass.changed() || middle.changed() || treble.changed())
-  {
-    toneStack.setTone(bass, middle, treble);
-  }
-
-  if (enableChanged) toneStack.enable(enable);
 });
 
 
@@ -388,25 +390,40 @@ EFFECT(chorus)
 
 EPARAMS(reverb)
 {
-  Parameter("size", Parameter::PT_Float, 0.8f),
-  Parameter("damp", Parameter::PT_Float, 0.3f),
-  Parameter("wet", Parameter::PT_Float, 0.15f),
+  Parameter("input", Parameter::PT_Float, 1.0f),
+  Parameter("delay", Parameter::PT_Float, 0.5f),
+  Parameter("bw", Parameter::PT_Float, 0.8f),
+  Parameter("density", Parameter::PT_Float, 0.7f),
+  Parameter("decay", Parameter::PT_Float, 0.5f),
+  Parameter("damp", Parameter::PT_Float, 0.2f),
+  Parameter("sensitivity", Parameter::PT_Float, 0.0f),
+  Parameter("wet", Parameter::PT_Float, 0.2f),
   Parameter("dry", Parameter::PT_Float, 1.0f),
   Parameter("enable", Parameter::PT_Bool, false),
 };
 EFFECT(reverb)
 {
   int i = 0;
-  Parameter& size = e[i++];
+  Parameter& input = e[i++];
+  Parameter& delay = e[i++];
+  Parameter& bw = e[i++];
+  Parameter& density = e[i++];
+  Parameter& decay = e[i++];
   Parameter& damp = e[i++];
+  Parameter& sensitivity = e[i++];
   Parameter& wet = e[i++];
   Parameter& dry = e[i++];
   Parameter& enable = e[i++];
 
   bool enableChanged = enable.changed();
 
-  if (enableChanged || size.changed()) reverb.roomsize(size);
+  if (enableChanged || input.changed()) reverb.input(input);
+  if (enableChanged || delay.changed()) reverb.delay(delay);
+  if (enableChanged || bw.changed()) reverb.bandwidth(bw);
+  if (enableChanged || density.changed()) reverb.density(density);
+  if (enableChanged || decay.changed()) reverb.decay(decay);
   if (enableChanged || damp.changed()) reverb.damping(damp);
+  if (enableChanged || sensitivity.changed()) reverb.sensitivity(sensitivity);
   if (enableChanged || wet.changed()) reverb.wet(wet);
   if (enableChanged || dry.changed()) reverb.dry(dry);
   if (enableChanged) reverb.enable(enable);
@@ -416,7 +433,7 @@ EFFECT(reverb)
 EPARAMS(delay)
 {
   Parameter("time", Parameter::PT_Float, 500.0f, 10.0f, 1000.0f, 10.0f),
-  Parameter("repeat", Parameter::PT_Float, 0.30f),
+  Parameter("repeat", Parameter::PT_Float, 0.20f),
   Parameter("drive", Parameter::PT_Float, 0.0f),
   Parameter("freq", Parameter::PT_Freq, 2500.0f, 100.0f, 10000.0f),
   Parameter("f_q", Parameter::PT_Float, 1.0f, 0.1f, 10.0f, 0.1f),
@@ -427,7 +444,7 @@ EPARAMS(delay)
   Parameter("rate", Parameter::PT_Float, 0.5f),
   Parameter("depth", Parameter::PT_Float, 0.5f),
   Parameter("spread", Parameter::PT_Float, 0.5f),  
-  Parameter("wet", Parameter::PT_Float, 0.3f),
+  Parameter("wet", Parameter::PT_Float, 0.2f),
   Parameter("dry", Parameter::PT_Float, 1.0f),
   Parameter("enable", Parameter::PT_Bool, false),
 };
@@ -497,7 +514,7 @@ EFFECT(sonic)
   Parameter& width = e[i++];
   Parameter& enable = e[i++];
 
-  sonic.parameters(enable ? (int)listen : 4, lowMid, midHigh, lComp, mComp, hComp, lOut, mOut, hOut, attack, release, width, false);
+  sonic.begin(enable ? (int)listen : 4, lowMid, midHigh, lComp, mComp, hComp, lOut, mOut, hOut, attack, release, width, false);
 });
 
 
@@ -567,27 +584,6 @@ FLASHMEM void displayParamValue(Effect* effect = nullptr, Parameter* param = nul
   if (param == nullptr) param = effect->param();
   snprintf(buf, 32, "%-1.1s.%-3.3s%s", effect->name(), param->name(), param->tos());
   print(buf);
-}
-
-FLASHMEM bool resetEffect(const char* name)
-{
-  Effect *e = Effect::effect(name);
-  if (e == nullptr) return false;
-  
-  e->reset();
-
-  return true;
-}
-
-FLASHMEM bool updateEffect(const char* name, int n, float values[])
-{
-  Effect *e = Effect::effect(name);
-  if (e == nullptr) return false;
-
-  e->change(n, values);
-  e->update();
-   
-  return true;
 }
 
 FLASHMEM void setState(short newState)
@@ -685,12 +681,12 @@ class IBindable
       char pname[64];
       int i = 0;
       int p = 0;
-      int len = strnlen(bname, 64);
+      int len = bname == nullptr ? 0 : strnlen(bname, 64);
       if (len == 0)
       {
         if (debug) Serial.printf("Control %s unbound\r\n", _name);
-        _effect = nullptr;
         _param = nullptr;
+        _effect = nullptr;
         return true;
       }
       
@@ -733,6 +729,16 @@ class IBindable
       return true;
     }
 
+    FLASHMEM bool unbind()
+    {
+      _param = nullptr;
+      _effect = nullptr;
+      
+      if (debug) Serial.printf("Control %s unbound\r\n", _name);
+
+      return true;    
+    }
+
     FLASHMEM static bool bind(const char *name, const char* bname)
     {
       if (name == nullptr || bname == nullptr) return false;
@@ -749,6 +755,22 @@ class IBindable
       return false;
     }
 
+    FLASHMEM static bool unbind(const char *name)
+    {
+      if (name == nullptr) return false;
+      
+      IBindable *b = _first;
+      while (b != nullptr)
+      {
+        if (strncmp(name, b->_name, _maxlen) == 0) return b->unbind();
+        b = b->_next;
+      }
+
+      if (debug) Serial.printf("Control %s not found\r\n", name);
+
+      return false;
+    }
+
     FLASHMEM static void saveAll(Print *p)
     {
       if (p == nullptr) return;
@@ -756,7 +778,7 @@ class IBindable
       IBindable *b = _first;
       while (b != nullptr)
       {
-        if (b->bound()) p->printf("%s.bind(\"%s.%s\");\r\n", b->name(), b->_effect->name(), b->_param->name());
+        b->print(p);
         b = b->_next;
       }
     }
@@ -767,7 +789,10 @@ class IBindable
 
     FLASHMEM void print(Print *p)
     {
-      if (bound()) p->printf("%s=\"%s.%s\";\r\n", _name, _effect->name(), _param->name());
+      if (p == nullptr) return;
+
+      if (bound()) p->printf("bind(\"%s\",\"%s.%s\");\r\n", _name, _effect->name(), _param->name());
+      else p->printf("unbind(\"%s\");\r\n", _name);
     }
 
   protected:

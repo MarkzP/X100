@@ -15,7 +15,6 @@ class AudioEffectCabSim_F32 :
     AudioEffectCabSim_F32(void):
       AudioStream_F32(2, inputQueueArray)
     {
-      begin();
     }
 
     AudioEffectCabSim_F32(const AudioSettings_F32 &settings):
@@ -27,7 +26,6 @@ class AudioEffectCabSim_F32 :
       _fpostL(settings.sample_rate_Hz),
       _fpostR(settings.sample_rate_Hz)
     {
-      begin();
     }
 
     void begin()
@@ -62,7 +60,7 @@ class AudioEffectCabSim_F32 :
     {
       size *= 0.3f;
       size += 0.1f;
-      _revL.roomsize(size); _revR.roomsize(size);
+      _revL.size(size); _revR.size(size);
       _revL.damping(0.8f); _revR.damping(0.8f);
     }
 
@@ -73,7 +71,7 @@ class AudioEffectCabSim_F32 :
 
     void room(float room = 0.5f)
     {
-      _room = (room < 0.0f ? 0.0f : room > 1.0f ? 1.0f : room) * 0.5f;
+      _room = (room < 0.0f ? 0.0f : room > 1.0f ? 1.0f : room) * 0.25f;
     }
 
     void enable(bool enable = false)
@@ -104,17 +102,17 @@ class AudioEffectCabSim_F32 :
         _frevL.filterBlock(blockL, roomL);
         _frevR.filterBlock(blockR, roomR);
 
-        _delayL.processBlock(roomL);
-        _delayR.processBlock(roomR);
-
-        _revL.processBlock(roomL);
-        _revR.processBlock(roomR);
-
         BlockOperations::scale(blockL, _direct);
         BlockOperations::scale(blockR, _direct);
 
         BlockOperations::scale(roomL, _room);
         BlockOperations::scale(roomR, _room);
+
+        _delayL.delayBlock(roomL);
+        _delayR.delayBlock(roomR);
+
+        _revL.processBlock(roomL);
+        _revR.processBlock(roomR);
 
         BlockOperations::add(roomL, blockL);
         BlockOperations::add(roomR, blockR);
@@ -142,8 +140,8 @@ class AudioEffectCabSim_F32 :
     CascadeBiquad<2> _fpostR;
     FreeverbL _revL;
     FreeverbR _revR;
-    LQDelay<346> _delayL;
-    LQDelay<291> _delayR;
+    StaticDelay<346> _delayL;
+    StaticDelay<291> _delayR;
 
     bool _enable = false;
     float _direct = 1.0f;

@@ -10,7 +10,7 @@ class AudioEffectMultiband_F32 :
 //GUI: inputs:2, outputs:2  //this line used for automatic generation of GUI node
 //GUI: shortName:multiband  
   public:
-    void parameters(
+    void begin(
         int listen = 3,
         float lowMid = 0.15f,
         float midHigh = 0.6f,
@@ -67,12 +67,10 @@ class AudioEffectMultiband_F32 :
 
     AudioEffectMultiband_F32(void): AudioStream_F32(2, inputQueueArray)
     {
-      parameters();
     }
 
     AudioEffectMultiband_F32(const AudioSettings_F32 &settings): AudioStream_F32(2, inputQueueArray)
     {
-      parameters();
     }  
     
     virtual void update(void)

@@ -294,7 +294,7 @@ class CascadeBiquad: public BiquadBase
       return *this;
     }
 
-    inline void filterArray(float* pSrc, float* pDst, uint32_t len)
+    void filterArray(float* pSrc, float* pDst, uint32_t len)
     {
       if (!pSrc || !pDst || len == 0) return;
 
@@ -307,7 +307,7 @@ class CascadeBiquad: public BiquadBase
       arm_biquad_cascade_df1_f32(&_iir, pSrc, pDst, len);
     }
 
-    inline void filterBlock(audio_block_f32_t* pSrc, audio_block_f32_t* pDst = nullptr)
+    void filterBlock(audio_block_f32_t* pSrc, audio_block_f32_t* pDst = nullptr)
     {
       if (!pSrc) return;
 
@@ -324,8 +324,6 @@ class CascadeBiquad: public BiquadBase
 
       return sample;
     }
-
-  protected:
 
     virtual bool coefficients(double b0, double b1, double b2, double a1, double a2)
     {
@@ -354,16 +352,16 @@ class CascadeBiquad: public BiquadBase
 };
 
 
-class LFBiquad: public BiquadBase
+class HQBiquad: public BiquadBase
 {
   public:
-    LFBiquad(double sample_rate_Hz = AUDIO_SAMPLE_RATE_EXACT)
+    HQBiquad(double sample_rate_Hz = AUDIO_SAMPLE_RATE_EXACT)
     {
       _sample_rate_Hz = sample_rate_Hz;
       reset();
     }
 
-    LFBiquad& reset()
+    HQBiquad& reset()
     {
       return *this;
     }
@@ -373,43 +371,43 @@ class LFBiquad: public BiquadBase
 
     }
 
-    LFBiquad& setLowpass(double frequency, double q = _invsqrt2)
+    HQBiquad& setLowpass(double frequency, double q = _invsqrt2)
     {
       lowpass(frequency, q);
       return *this;
     }
 
-    LFBiquad& setHighpass(double frequency, double q = _invsqrt2)
+    HQBiquad& setHighpass(double frequency, double q = _invsqrt2)
     {
       highpass(frequency, q);
       return *this;
     }
 
-    LFBiquad& setBandpass(double frequency, double q = _invsqrt2)
+    HQBiquad& setBandpass(double frequency, double q = _invsqrt2)
     {
       bandpass(frequency, q);
       return *this;
     }
 
-    LFBiquad& setNotch(double frequency, double q = _invsqrt2)
+    HQBiquad& setNotch(double frequency, double q = _invsqrt2)
     {
       notch(frequency, q);
       return *this;
     }
 
-    LFBiquad& setLowShelf(double frequency, double gain, double slope = _invsqrt2)
+    HQBiquad& setLowShelf(double frequency, double gain, double slope = _invsqrt2)
     {
       lowShelf(frequency, gain, slope);
       return *this;
     }
 
-    LFBiquad& setHighShelf(double frequency, double gain, double slope = _invsqrt2)
+    HQBiquad& setHighShelf(double frequency, double gain, double slope = _invsqrt2)
     {
       highShelf(frequency, gain, slope);
       return *this;
     }
 
-    LFBiquad& setPeak(double frequency, double gain, double q = _invsqrt2)
+    HQBiquad& setPeak(double frequency, double gain, double q = _invsqrt2)
     {
       peak(frequency, gain, q);
       return *this;
@@ -426,14 +424,14 @@ class LFBiquad: public BiquadBase
       return (float)y;
     }
 
-    inline void filterArray(float* pSrc, float* pDst, uint32_t len)
+    void filterArray(float* pSrc, float* pDst, uint32_t len)
     {
       if (!pSrc || !pDst || len == 0) return;
 
       for (uint32_t i = 0; i < len; i++) pDst[i] = filter(pSrc[i]);
     }
 
-    inline void filterBlock(audio_block_f32_t* pSrc, audio_block_f32_t* pDst = nullptr)
+    void filterBlock(audio_block_f32_t* pSrc, audio_block_f32_t* pDst = nullptr)
     {
       if (!pSrc) return;
 
@@ -441,8 +439,6 @@ class LFBiquad: public BiquadBase
 
       filterArray(pSrc->data, pDst->data, pSrc->length);
     }
-
-  protected:
 
     virtual bool coefficients(double b0, double b1, double b2, double a1, double a2)
     {
@@ -469,16 +465,16 @@ class LFBiquad: public BiquadBase
 };
 
 
-class LF1p1zBiquad: public BiquadBase
+class HQ1p1zBiquad: public BiquadBase
 {
   public:
-    LF1p1zBiquad(double sample_rate_Hz = AUDIO_SAMPLE_RATE_EXACT)
+    HQ1p1zBiquad(double sample_rate_Hz = AUDIO_SAMPLE_RATE_EXACT)
     {
       _sample_rate_Hz = sample_rate_Hz;
       reset();
     }
 
-    LF1p1zBiquad& reset()
+    HQ1p1zBiquad& reset()
     {
       return *this;
     }
@@ -488,13 +484,13 @@ class LF1p1zBiquad: public BiquadBase
 
     }
 
-    LF1p1zBiquad& setLowpass1p1z(double frequency)
+    HQ1p1zBiquad& setLowpass1p1z(double frequency)
     {
       lowpass1p1z(frequency);
       return *this;
     }
 
-    LF1p1zBiquad& setHighpass1p1z(double frequency)
+    HQ1p1zBiquad& setHighpass1p1z(double frequency)
     {
       highpass1p1z(frequency);
       return *this;
@@ -509,14 +505,14 @@ class LF1p1zBiquad: public BiquadBase
       return (float)y;
     }
 
-    inline void filterArray(float* pSrc, float* pDst, uint32_t len)
+    void filterArray(float* pSrc, float* pDst, uint32_t len)
     {
       if (!pSrc || !pDst || len == 0) return;
 
       for (uint32_t i = 0; i < len; i++) pDst[i] = filter(pSrc[i]);
     }
 
-    inline void filterBlock(audio_block_f32_t* pSrc, audio_block_f32_t* pDst = nullptr)
+    void filterBlock(audio_block_f32_t* pSrc, audio_block_f32_t* pDst = nullptr)
     {
       if (!pSrc) return;
 
@@ -545,7 +541,59 @@ class LF1p1zBiquad: public BiquadBase
     double _yn1 = 0.0;
 };
 
+class LPFirstOrder
+{
+  public:
+    LPFirstOrder(double sample_rate_Hz = AUDIO_SAMPLE_RATE_EXACT)
+    {
+      _sample_rate_Hz = sample_rate_Hz;
+    }
 
+    void begin()
+    {
+
+    }
+
+    void coefficient(float b)
+    {
+      _b = b < 0.0f ? 0.0f : b > 1.0f ? 1.0f : b;
+    }
+
+    void frequency(float freq)
+    {
+      float omega = freq * 2.0f * (float)PI / _sample_rate_Hz;
+      float y = tanf(omega / 2.0f);
+      _b = (2.0f * y) / (y + 1.0f);
+    }
+
+    inline float filter(float x)
+    {
+      return _y += _b * (x - _y);
+    }
+
+    void filterArray(float* pSrc, float* pDst, uint32_t len)
+    {
+      if (!pSrc || !pDst || len == 0) return;
+
+      for (uint32_t i = 0; i < len; i++) pDst[i] = filter(pSrc[i]);
+    }
+
+    void filterBlock(audio_block_f32_t* pSrc, audio_block_f32_t* pDst = nullptr)
+    {
+      if (!pSrc) return;
+
+      if (!pDst) pDst = pSrc;
+
+      filterArray(pSrc->data, pDst->data, pSrc->length);
+    }
+
+  private:
+    float _sample_rate_Hz = AUDIO_SAMPLE_RATE_EXACT;
+    float _b = 1.0;
+    float _y = 0.0f;
+};
+
+template <int N = 2>
 class StateVariableFilter
 {
   public:
@@ -556,7 +604,12 @@ class StateVariableFilter
 
     void frequency(float freq)
     {
-      _center = freq * (float)PI / _sample_rate_Hz;
+      _center = freq * (2.0f / (float)N) * (float)PI / _sample_rate_Hz;
+    }
+
+    void control(float control)
+    {
+      _octave = fasterexp2f(control);
     }
 
     void resonance(float q)
@@ -574,47 +627,42 @@ class StateVariableFilter
       __enable_irq();
     }
 
-    void split(float input, float control, float& low, float& band, float& high)
+    void split(float input)
     {
-      float f = _center * fasterexp2f(control);
+      float f = _center * _octave;
       f = f < 0.0005f ? 0.0005f : f > 0.9995f ? 0.9995f : f;
 
-      _low += f * _band;
-      high = input - _low - _q * _band;
-      _band += f * high;
-
-      low = _low += f * _band;
-      high = input - _low - _q * _band;
-      band = _band += f * high;
+      for (int i = 0; i < N; i++) {
+        _low += f * _band;
+        _high = input - _low - _q * _band;
+        _band += f * _high;
+      }
     }
 
-    inline float filter(float input, float control = 0.0f)
+    inline float filter(float input)
     {
-      float low, band, high;
-      split(input, control, low, band, high);
-      return (input * _mix_dry) + (low * _mix_low) + (band * _mix_band) + (high * _mix_high);
+      split(input);
+      return (input * _mix_dry) + (_low * _mix_low) + (_band * _mix_band) + (_high * _mix_high);
     }
 
-    inline float lowpass(float input, float control = 0.0f)
+    inline float lowpass(float input)
     {
-      float low, band, high;
-      split(input, control, low, band, high);
-      return low;
+      split(input);
+      return _low;
     }
 
-    inline float bandpass(float input, float control = 0.0f)
+    inline float bandpass(float input)
     {
-      float low, band, high;
-      split(input, control, low, band, high);
-      return band;
+      split(input);
+      return _band;
     }
 
-    inline float hipass(float input, float control = 0.0f)
+    inline float hipass(float input)
     {
-      float low, band, high;
-      split(input, control, low, band, high);
-      return high;
+      split(input);
+      return _high;
     }
+
   private:
     float _sample_rate_Hz;
     float _mix_dry = 0.0f;
@@ -623,8 +671,10 @@ class StateVariableFilter
     float _mix_high = 0.0f;
     float _q = 1.0f;
     float _center = 0.1f;
+    float _octave = 1.0f;
     float _low = 0.0f;
     float _band = 0.0f;
+    float _high = 0.0f;
     inline float fasterexp2f(float p)
     {
       union {
@@ -636,157 +686,6 @@ class StateVariableFilter
 };
 
 
-template <int N>
-class CombFilter
-{
-  public:
-    void damping(float damping)
-    {
-      _damping = damping < 0.0f ? 0.0f : damping > 1.0f ? 1.0f : damping;
-    }
-
-    void feedback(float feedback)
-    {
-      _feedback = feedback < 0.0f ? 0.0f : feedback > 1.0f ? 1.0f : feedback;
-    }
-
-    inline float filter(float input)
-    {
-      float output = _delay[_index];
-      _state += (output - _state) * _damping;
-      _delay[_index] = (_state * _feedback) + input;
-      if (++_index >= N) _index = 0;
-      return output;
-    }
-  private:
-    uint16_t _index = 0;
-    float _delay[N];
-    float _damping = 0.5f;
-    float _feedback = 0.5f;
-    float _state = 0.0f;
-};
-
-
-template <int N>
-class AllPassFilter
-{
-  public:
-    void feedback(float feedback)
-    {
-      _feedback = feedback < 0.0f ? 0.0f : feedback > 1.0f ? 1.0f : feedback;
-    }
-
-    void gain(float gain)
-    {
-      _gain = gain < 0.0f ? 0.0f : gain > 1.0f ? 1.0f : gain;
-    }
-
-    inline float filter(float input)
-    {
-      float bufout = _delay[_index];
-      _delay[_index] = (bufout * _feedback) + input;
-      if (++_index >= N) _index = 0;
-      return (bufout - input) * _gain;
-    }
-  private:
-    uint16_t _index = 0;
-    float _delay[N];
-    float _feedback = 0.5f;
-    float _gain = 0.5f;
-};
-
-
-template <int N = 0>
-class Freeverb
-{
-  public:
-    Freeverb()
-    {
-      roomsize();
-      damping();
-    }
-
-    void roomsize(float n = 0.5f)
-    {
-      if (n > 1.0f) n = 1.0f;
-      else if (n < 0.0f) n = 0.0f;
-      float feeback = (n * 0.28f) + 0.7f;
-
-      __disable_irq();
-      _cf1.feedback(feeback);
-      _cf2.feedback(feeback);
-      _cf3.feedback(feeback);
-      _cf4.feedback(feeback);
-      _cf5.feedback(feeback);
-      _cf6.feedback(feeback);
-      _cf7.feedback(feeback);
-      _cf8.feedback(feeback);
-      __enable_irq();
-    }
-
-    void damping(float n = 0.5f)
-    {
-      if (n > 1.0f) n = 1.0f;
-      else if (n < 0.0f) n = 0.0f;
-      float damping = 1.0f - (n * 0.4f);
-
-      __disable_irq();
-      _cf1.damping(damping);
-      _cf2.damping(damping);
-      _cf3.damping(damping);
-      _cf4.damping(damping);
-      _cf5.damping(damping);
-      _cf6.damping(damping);
-      _cf7.damping(damping);
-      _cf8.damping(damping);
-      __enable_irq();
-    }
-
-    void processBlock(audio_block_f32_t* pSrc, audio_block_f32_t* pDst = nullptr)
-    {
-      if (pSrc == nullptr) return;
-      if (pDst == nullptr) pDst = pSrc;
-
-      for (int i = 0; i < pSrc->length; i++)
-      {
-        float input = pSrc->data[i];
-        float output = 0.0f;
-        output += _cf1.filter(input);
-        output += _cf2.filter(input);
-        output += _cf3.filter(input);
-        output += _cf4.filter(input);
-        output += _cf5.filter(input);
-        output += _cf6.filter(input);
-        output += _cf7.filter(input);
-        output += _cf8.filter(input);
-
-        output = _ap1.filter(output);
-        output = _ap2.filter(output);
-        output = _ap3.filter(output);
-        output = _ap4.filter(output);
-
-        pDst->data[i] = output;
-      }
-    }
-    
-  protected:
-    CombFilter < 1116 + N > _cf1;
-    CombFilter < 1188 + N > _cf2;
-    CombFilter < 1277 + N > _cf3;
-    CombFilter < 1356 + N > _cf4;
-    CombFilter < 1422 + N > _cf5;
-    CombFilter < 1491 + N > _cf6;
-    CombFilter < 1557 + N > _cf7;
-    CombFilter < 1617 + N > _cf8;
-    AllPassFilter < 225 + N > _ap1;
-    AllPassFilter < 556 + N > _ap2;
-    AllPassFilter < 441 + N > _ap3;
-    AllPassFilter < 341 + N > _ap4;
-};
-
-typedef Freeverb<0> FreeverbL;
-typedef Freeverb<23> FreeverbR;
-
 class DcBlock
 {
   public:
@@ -795,6 +694,22 @@ class DcBlock
       _yn1 = x - _xn1 + _a * _yn1;
       _xn1 = x;
       return _yn1;
+    }
+
+    inline void filterArray(float* pSrc, float* pDst, uint32_t len)
+    {
+      if (!pSrc || !pDst || len == 0) return;
+
+      for (uint32_t i = 0; i < len; i++) pDst[i] = filter(pSrc[i]);
+    }
+
+    inline void filterBlock(audio_block_f32_t* pSrc, audio_block_f32_t* pDst = nullptr)
+    {
+      if (!pSrc) return;
+
+      if (!pDst) pDst = pSrc;
+
+      filterArray(pSrc->data, pDst->data, pSrc->length);
     }
   private:
     static constexpr float _a = 0.995f;
@@ -808,16 +723,11 @@ class Detector
   public:
     inline float detect(float x)
     {
-      if (x < 0.0f)
-      {
-        _neg += (x - _neg) * (x < _neg ? _attack : _decay);
-      }
-      else
-      {
-        _pos += (x - _pos) * (x > _pos ? _attack : _decay);
-      }
+      _yn1 = x - _xn1 + _a * _yn1;
+      _xn1 = x;
 
-      return _level = (_pos - _neg) * 0.5f;
+      float level = fabsf(_yn1);
+      return _level += (level - _level) * (level > _level ? _attack : _decay);
     }
 
     inline float level()
@@ -830,11 +740,13 @@ class Detector
       return _level < 5.011872E-07f ? -126.0f : 20.0f * log10f(_level);
     }
   private:
+    static constexpr float _a = 0.998f;
+    float _xn1 = 0.0f;
+    float _yn1 = 0.0f;
+
     static constexpr float _attack = 1.0f;
     static constexpr float _decay = 0.001f;
     float _level = 0.0f;
-    float _pos = 0.0f;
-    float _neg = 0.0f;
 };
 
 
@@ -863,7 +775,8 @@ class BasicLfo
 
     inline float increment()
     {
-      while ((_phase += _phaseIncrement) > Half) _phase -= FullRotation;
+      _phase += _phaseIncrement;
+      while (_phase > Half) _phase -= FullRotation;
       return value(_phase);
     }
 
@@ -916,91 +829,81 @@ class SineLfo: public BasicLfo
 };
 
 
-template <int N>
+#define CUBIC
 class Delay
 {
   public:
-    void processBlock(audio_block_f32_t* pSrc, audio_block_f32_t* pDst = nullptr)
+    bool begin(float *delay, int d_length)
     {
-      if (pSrc == nullptr) return;
-      if (pDst == nullptr) pDst = pSrc;
+      if (delay == _delay && d_length == _max_index) return true;
 
-      float index = _index;
-      for (uint16_t i = 0; i < pSrc->length; i++)
-      {
-        float sample = pSrc->data[i];
-        pDst->data[i] = _delayline[_index];
-        _delayline[_index] = sample;
-        if (++_index >= N) _index = 0;
-      }
-      _index = index;
-    }
-  private:
-    float _delayline[N];
-    uint16_t _index = 0;
-};
-
-
-template <int N>
-class LQDelay
-{
-  public:
-    void processBlock(audio_block_f32_t* pSrc, audio_block_f32_t* pDst = nullptr)
-    {
-      if (pSrc == nullptr) return;
-      if (pDst == nullptr) pDst = pSrc;
-
-      float index = _index;
-      for (uint16_t i = 0; i < pSrc->length; i++)
-      {
-        int32_t is = (int32_t)(pSrc->data[i] * _ftoi);
-        is = is < INT16_MIN ? INT16_MIN : is > INT16_MAX ? INT16_MAX : is;
-        pDst->data[i] = (float)_delayline[_index] * _itof;
-        _delayline[_index] = is;
-        if (++_index >= N) _index = 0;
-      }
-      _index = index;
-    }
-  private:
-    static constexpr float _ftoi = 32768.0f / 1.5f;
-    static constexpr float _itof = 1.0f / _ftoi;
-    int16_t _delayline[N];
-    uint16_t _index = 0;
-};
-
-
-class ModDelay
-{
-  public:
-    bool begin(float *delayline, int d_length)
-    {
-      if (delayline == _delayline && d_length == _max_index) return true;
-
-      _delayline = nullptr;
-
-      if (!delayline || d_length < 3) return false;
+      if (!delay || d_length < 3) return false;
 
       _w_index = 0;
       _max_index = d_length;
       _max_delay = (float)(_max_index - 2);
+      _dts = _max_index - 1;
 
-      memset(delayline, 0, _max_index * sizeof(float));
+      memset(delay, 0, _max_index * sizeof(float));
 
-      _delayline = delayline;
+      _delay = delay;
 
       return true;
     }
 
-    inline void write(float sample)
+    void time(float sec)
     {
-      if (!_delayline) return;
-      _delayline[_w_index] = sample;
+      float samples = AUDIO_SAMPLE_RATE_EXACT * sec;
+      _dts = (int)(samples < 0.0f ? 0.0f : samples > _max_delay ? _max_delay : samples);
+    }
+
+    void feedback(float feedback)
+    {
+      _feedback = feedback < -1.0f ? -1.0f : feedback > 1.0f ? 1.0f : feedback;
+    }
+
+    void write(float sample)
+    {
+      if (!_delay) return;
+      _delay[_w_index] = sample;
       if (++_w_index >= _max_index) _w_index = 0;
     }
 
-    inline float read(float delay_samples)
+#ifdef CUBIC
+    float read(float delay_samples)
     {
-      if (!_delayline) return 0.0f;
+      if (!_delay) return 0.0f;
+
+      delay_samples = delay_samples < 2.0f ? 2.0f : delay_samples > _max_delay ? _max_delay : delay_samples;
+
+      float mod_number;
+      float frac =  1.0f - modff(delay_samples, &mod_number);
+
+      int im1 = _w_index - (int)mod_number - 2;
+      while (im1 < 0) im1 += _max_index;
+
+      int i0 = im1 + 1;
+      if (i0 >= _max_index) i0 = 0;
+
+      int i1 = i0 + 1;
+      if (i1 >= _max_index) i1 = 0;
+
+      int i2 = i1 + 1;
+      if (i2 >= _max_index) i2 = 0;
+
+      float xm1 = _delay[im1];
+      float x0  = _delay[i0];
+      float x1  = _delay[i1];
+      float x2  = _delay[i2];
+      float a = (3.0f * (x0 - x1) - xm1 + x2) * 0.5f;
+      float b = 2.0f * x1 + xm1 - (5.0f * x0 + x2) * 0.5f;
+      float c = (x1 - xm1) * 0.5f;
+      return (((a * frac) + b) * frac + c) * frac + x0;
+    }
+#else
+    float read(float delay_samples)
+    {
+      if (!_delay) return 0.0f;
 
       delay_samples = delay_samples < 0.0f ? 0.0f : delay_samples > _max_delay ? _max_delay : delay_samples;
 
@@ -1013,35 +916,112 @@ class ModDelay
       int next = index + 1;
       if (next >= _max_index) next = 0;
 
-      float s0 = _delayline[index];
-      float s1 = _delayline[next];
+      float s0 = _delay[index];
+      float s1 = _delay[next];
 
       return (mod_fraction * (s0 - s1)) + s1;
     }
+#endif
 
-    static constexpr int bufferSize(float ms)
+    float readSample(int delay_samples)
     {
-      return (int)(AUDIO_SAMPLE_RATE_EXACT * ms * 0.001f) + 2;
+      if (!_delay) return 0.0f;
+
+      delay_samples = delay_samples < 0 ? 0 : delay_samples > _max_index - 1 ? _max_index - 1 : delay_samples;
+
+      int index = _w_index - delay_samples - 1;
+      while (index < 0) index += _max_index;
+
+      return _delay[index];
+    }
+
+    float delay(float input)
+    {
+      write(input);
+      return readSample(_dts);
+    }
+
+    float allpass(float input)
+    {
+      float bufout = readSample(_dts);
+      float temp = input * -_feedback;
+      float output = bufout + temp;
+      write(input + (output * _feedback));
+      return output;
+    }
+
+    float allpass(float input, float modulation)
+    {
+      float bufout = read((float)_dts + modulation);
+      float temp = input * -_feedback;
+      float output = bufout + temp;
+      write(input + (output * _feedback));
+      return output;
+    }
+
+    void delayBlock(audio_block_f32_t* pSrc, audio_block_f32_t* pDst = nullptr)
+    {
+      if (pSrc == nullptr) return;
+      if (pDst == nullptr) pDst = pSrc;
+
+      for (uint16_t i = 0; i < pSrc->length; i++)
+      {
+        write(pSrc->data[i]);
+        pDst->data[i] = readSample(_dts);
+      }
+    }
+
+    float maxTime()
+    {
+      return _max_delay / AUDIO_SAMPLE_RATE_EXACT;
+    }
+
+    static constexpr uint16_t bufferSizeMs(float ms)
+    {
+      return (uint16_t)(AUDIO_SAMPLE_RATE_EXACT * ms * 0.001f) + 2;
+    }
+
+    static constexpr uint16_t bufferSize(float sec)
+    {
+      return (uint16_t)(AUDIO_SAMPLE_RATE_EXACT * sec) + 2;
     }
 
   protected:
     uint16_t _max_index = 0;
     float _max_delay = 0.0f;
     uint16_t _w_index = 0;
-    float* _delayline = nullptr;
+    float* _delay = nullptr;
+    int _dts = 0;
+    float _feedback = 0.0f;
+    float _vn_1 = 0.0f;
 };
 
 
-class LQModDelay
+template <uint16_t N>
+class StaticDelay: public Delay
 {
   public:
-    bool begin(int16_t *delayline, int d_length, float sample_rate_Hz = AUDIO_SAMPLE_RATE_EXACT)
+    StaticDelay()
     {
-      if (delayline == _delayline && d_length == _max_index) return true;
+      _delay = _static_delay;
+      _max_index = N;
+      _max_delay = (float)(N - 2);
+      _dts = N - 1;
+    }
 
-      _delayline = nullptr;
+  protected:
+    float _static_delay[N];
+};
 
-      if (!delayline || d_length < 2) return false;
+
+class LQDelay
+{
+  public:
+    bool begin(int16_t *delay, int d_length, float sample_rate_Hz = AUDIO_SAMPLE_RATE_EXACT)
+    {
+      if (delay == _delay && d_length == _max_index) return true;
+
+      if (!delay || d_length < 2) return false;
 
       _f.reset().setLowpass(sample_rate_Hz * 0.25f).setLowpass(sample_rate_Hz * 0.25f).begin();
 
@@ -1049,16 +1029,16 @@ class LQModDelay
       _max_index = d_length;
       _max_delay = (float)(_max_index - 2);
 
-      memset(delayline, 0, _max_index * sizeof(int16_t));
+      memset(delay, 0, _max_index * sizeof(int16_t));
 
-      _delayline = delayline;
+      _delay = delay;
 
       return true;
     }
 
-    inline void write(float sample)
+    void write(float sample)
     {
-      if (!_delayline) return;
+      if (!_delay) return;
 
       sample = _dc.filter(sample);
       sample = _f.filter(sample);
@@ -1069,14 +1049,14 @@ class LQModDelay
       int32_t is = (int32_t)(sample * _ftoi);
       is = is < INT16_MIN ? INT16_MIN : is > INT16_MAX ? INT16_MAX : is;
 
-      _delayline[_w_index] = is;
+      _delay[_w_index] = is;
 
       if (++_w_index >= _max_index) _w_index = 0;
     }
 
-    inline float read(float delay_samples)
+    float read(float delay_samples)
     {
-      if (!_delayline) return 0.0f;
+      if (!_delay) return 0.0f;
 
       delay_samples *= 0.5f;
       delay_samples = delay_samples < 0.0f ? 0.0f : delay_samples > _max_delay ? _max_delay : delay_samples;
@@ -1090,15 +1070,20 @@ class LQModDelay
       int next = index + 1;
       if (next >= _max_index) next = 0;
 
-      float s0 = (float)_delayline[index] * _itof;
-      float s1 = (float)_delayline[next] * _itof;
+      float s0 = (float)_delay[index] * _itof;
+      float s1 = (float)_delay[next] * _itof;
 
       return (mod_fraction * (s0 - s1)) + s1;
     }
 
-    static constexpr int bufferSize(float ms)
+    static constexpr uint16_t bufferSizeMs(float ms)
     {
-      return (int)(AUDIO_SAMPLE_RATE_EXACT * ms * 0.001f * 0.5f) + 2;
+      return (uint16_t)(AUDIO_SAMPLE_RATE_EXACT * ms * 0.001f) + 2;
+    }
+
+    static constexpr uint16_t bufferSize(float sec)
+    {
+      return (uint16_t)(AUDIO_SAMPLE_RATE_EXACT * sec) + 2;
     }
 
   protected:
@@ -1110,8 +1095,183 @@ class LQModDelay
     uint16_t _max_index = 0;
     float _max_delay = 0.0f;
     uint16_t _w_index = 0;
-    int16_t* _delayline = nullptr;
+    int16_t* _delay = nullptr;
+    float _last = 0.0f;
 };
 
+
+template <uint16_t N>
+class DelayFilter
+{
+  public:
+    void damping(float damping)
+    {
+      _damping = damping < 0.0f ? 0.0f : damping > 1.0f ? 1.0f : damping;
+    }
+
+    void feedback(float feedback)
+    {
+      _feedback = feedback < -1.0f ? -1.0f : feedback > 1.0f ? 1.0f : feedback;
+    }
+
+    float ap_mverb(float input)
+    {
+      if (++_index >= N) _index = 0;
+      float bufout = _delay[_index];
+      float temp = input * -_feedback;
+      float output = bufout + temp;
+      _delay[_index] = input + (output * _feedback);
+      return output;
+    }
+
+    float ap_freeverb(float input)
+    {
+      if (++_index >= N) _index = 0;
+      float bufout = _delay[_index];
+      float output = -input + bufout;
+      _delay[_index] = input + (bufout * _feedback);
+      return output;
+    }
+
+    // Dattorro
+    float allpass(float input)
+    {
+      if (++_index >= N) _index = 0;
+      float bufout = _delay[_index];
+      float bufin = _delay[_index] = input - (bufout * _feedback);
+      return bufout + (bufin * _feedback);
+    }
+
+    // Freeverb
+    float comb(float input)
+    {
+      if (++_index >= N) _index = 0;
+      float output = _delay[_index];
+      _state += (output - _state) * _damping;
+      _delay[_index] = (_state * _feedback) + input;
+      return output;
+    }
+
+    float delay(float input)
+    {
+      if (++_index >= N) _index = 0;
+      float output = _delay[_index];
+      _delay[_index] = input;
+      return output;
+    }
+
+    float readSample(int t)
+    {
+      //t = t < 0 ? 0 : t > (N - 1) ? (N - 1) : t;
+      int i = _index - t;
+      while (i < 0) i += N;
+      return _delay[i];
+    }
+
+    float operator [](int t)
+    {
+      int i = _index - t;
+      while (i < 0) i += N;
+      return _delay[i];
+    }
+
+  protected:
+    float _delay[N];
+    float _feedback = 0.0f;
+    float _damping = 0.5f;
+    float _state = 0.0f;
+    int _index = -1;
+};
+
+template <int N = 0>
+class Freeverb
+{
+  public:
+    Freeverb()
+    {
+      _ap1.feedback(0.5f);
+      _ap2.feedback(0.5f);
+      _ap3.feedback(0.5f);
+      _ap4.feedback(0.5f);
+      size();
+      damping();
+    }
+
+    void size(float n = 0.5f)
+    {
+      if (n > 1.0f) n = 1.0f;
+      else if (n < 0.0f) n = 0.0f;
+      float feeback = (n * 0.28f) + 0.7f;
+
+      _cf1.feedback(feeback);
+      _cf2.feedback(feeback);
+      _cf3.feedback(feeback);
+      _cf4.feedback(feeback);
+      _cf5.feedback(feeback);
+      _cf6.feedback(feeback);
+      _cf7.feedback(feeback);
+      _cf8.feedback(feeback);
+    }
+
+    void damping(float n = 0.5f)
+    {
+      if (n > 1.0f) n = 1.0f;
+      else if (n < 0.0f) n = 0.0f;
+      float damping = 1.0f - (n * 0.4f);
+
+      _cf1.damping(damping);
+      _cf2.damping(damping);
+      _cf3.damping(damping);
+      _cf4.damping(damping);
+      _cf5.damping(damping);
+      _cf6.damping(damping);
+      _cf7.damping(damping);
+      _cf8.damping(damping);
+    }
+
+    void processBlock(audio_block_f32_t* pSrc, audio_block_f32_t* pDst = nullptr)
+    {
+      if (pSrc == nullptr) return;
+      if (pDst == nullptr) pDst = pSrc;
+
+      for (int i = 0; i < pSrc->length; i++)
+      {
+        float input = pSrc->data[i];
+        float output = 0.0f;
+        output += _cf1.comb(input);
+        output += _cf2.comb(input);
+        output += _cf3.comb(input);
+        output += _cf4.comb(input);
+        output += _cf5.comb(input);
+        output += _cf6.comb(input);
+        output += _cf7.comb(input);
+        output += _cf8.comb(input);
+
+        output = _ap1.allpass(output);
+        output = _ap2.allpass(output);
+        output = _ap3.allpass(output);
+        output = _ap4.allpass(output);
+
+        pDst->data[i] = output;
+      }
+    }
+    
+  protected:
+    DelayFilter < 1116 + N > _cf1;
+    DelayFilter < 1188 + N > _cf2;
+    DelayFilter < 1277 + N > _cf3;
+    DelayFilter < 1356 + N > _cf4;
+    DelayFilter < 1422 + N > _cf5;
+    DelayFilter < 1491 + N > _cf6;
+    DelayFilter < 1557 + N > _cf7;
+    DelayFilter < 1617 + N > _cf8;
+    DelayFilter < 225 + N > _ap1;
+    DelayFilter < 556 + N > _ap2;
+    DelayFilter < 441 + N > _ap3;
+    DelayFilter < 341 + N > _ap4;
+};
+
+typedef Freeverb<0> FreeverbL;
+typedef Freeverb<23> FreeverbR;
 
 #endif

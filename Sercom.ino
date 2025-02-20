@@ -126,15 +126,18 @@ FLASHMEM void loadPreset(const char* fname)
 FLASHMEM void listPresets()
 {
   File dir = SD.open("/");
-  while (true)
+  if (dir)
   {
     File entry = dir.openNextFile();
-    if (!entry) break;
-    Serial.println(entry.name());    
-  }  
+    while (entry)
+    {
+      if (!entry.isDirectory()) Serial.println(entry.name());
+      entry = dir.openNextFile();
+    }
+  }
 }
 
-void dumpPreset(const char* fname)
+FLASHMEM void dumpPreset(const char* fname)
 {
   File f = SD.open(fname);
   if (f)
@@ -147,5 +150,6 @@ void dumpPreset(const char* fname)
 
 void handleSercom()
 {
+  if (Serial.available()) printLevels = false;
   for (int i = 0; Serial.available() && i < 512; i++) handleChar((char)Serial.read());
 }

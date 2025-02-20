@@ -15,7 +15,6 @@ class AudioEffectPreamp_F32 :
     AudioEffectPreamp_F32(void):
       AudioStream_F32(1, inputQueueArray)
     {
-      begin();
     }
 
     AudioEffectPreamp_F32(const AudioSettings_F32 &settings):
@@ -23,13 +22,13 @@ class AudioEffectPreamp_F32 :
       _f1(settings.sample_rate_Hz),
       _f2(settings.sample_rate_Hz)
     {
-      begin();
     }
 
     void begin()
     {
-      _f1.reset().setHighpass1p1z(100.0f).begin();
-      _f2.reset().setLowShelf(1000.0f, -4.5f, 0.3f).setLowpass(13500.0f).begin();
+      _f1.reset().setHighpass1p1z(50.0f).begin();
+      //_f2.reset().setLowShelf(1000.0f, -4.5f, 0.3f).setLowpass(13500.0f).begin();
+      _f2.reset().setLowpass1p1z(17500.0f).begin();
     }
 
     void enable(bool enable = true)
@@ -62,7 +61,7 @@ class AudioEffectPreamp_F32 :
     audio_block_f32_t *inputQueueArray[1];
     bool _enable = true;
 
-    LF1p1zBiquad _f1;
+    HQ1p1zBiquad _f1;
     CascadeBiquad<2> _f2;
 
     float _level = 1.0f;

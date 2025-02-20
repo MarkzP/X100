@@ -158,12 +158,6 @@ class SliderGroup
 	static object portLock = new object();
 	static Timer sendTimer = new Timer(processQueue, null, Timeout.Infinite, Timeout.Infinite);
 
-	static RangeControl leftOut = new RangeControl(-126, 0);
-	static RangeControl rightOut = new RangeControl(-126, 0);
-	static Span leftSpan = new Span("Left");
-	static Span rightSpan = new Span("Right");
-	static Button pauseBtn = new Button("Resume");
-	
 	static float unitToDb(float unit) => unit < 5.011872E-07f ? -126.0f : 20.0f * (float)Math.Log10(unit);
 
 	static void processQueue(object state)
@@ -179,7 +173,6 @@ class SliderGroup
 		}
 		
 		if (string.IsNullOrEmpty(msgs)) return;
-		//msgs.Dump();
 
 		try
 		{
@@ -187,6 +180,7 @@ class SliderGroup
 			{
 				using (var port = new System.IO.Ports.SerialPort(portName))
 				{
+					tbCom.Text = "";
 					port.Open();
 					port.ReadTimeout = 15;
 					port.Write(msgs);
@@ -195,7 +189,7 @@ class SliderGroup
 					//{
 						Thread.Sleep(100);
 						rsp = port.ReadExisting();
-						if (!string.IsNullOrEmpty(rsp)) rsp.Dump();
+						if (!string.IsNullOrEmpty(rsp)) tbCom.Text = rsp;
 					//} while (!string.IsNullOrEmpty(rsp));
 				}
 			}
@@ -214,7 +208,8 @@ class SliderGroup
 
 	static readonly Dictionary<string, SliderGroup> Groups = new Dictionary<string, UserQuery.SliderGroup>();
 
-	
+	static readonly TextBox tbCom = new TextBox();
+	static readonly TextBox tbPreset = new TextBox();
 
 	public static void Init()
 	{
@@ -224,26 +219,33 @@ class SliderGroup
 			{
 				try
 				{
+					
 					port.Open();
 				}
 				catch (IOException)
 				{
+					//testPort.Dump();
 					continue;
 				}
 				catch (UnauthorizedAccessException)
 				{
+					//testPort.Dump();
 					continue;
 				}			
 				
-				port.ReadTimeout = 500;
+				port.ReadTimeout = 200;
+				port.ReadExisting();
 				port.Write("stats();");
-				Thread.Sleep(20);
+				Thread.Sleep(200);
 				var report = port.ReadExisting();
-				if (!report.Contains("Proc")) continue;
+				if (!report.Contains("32=")) continue;
 				
 				SliderGroup actions = new SliderGroup("Actions", null, true);
 				actions.AddButton("printLevels(1);", ("printLevels", "1"));
 				actions.AddButton("printLevels(0);", ("printLevels", "0"));
+				actions.AddButton("stats();", ("stats", "0"));
+				actions.AddControl(new Label(port.PortName));
+				actions.AddControl(tbCom);
 				actions.Dump();
 				
 				
@@ -266,19 +268,42 @@ class SliderGroup
 				tones.Dump();
 				
 				port.Write("listPresets();");
-				Thread.Sleep(20);
+				Thread.Sleep(100);
 				report = port.ReadExisting();
-				SliderGroup presets = null;
+				SliderGroup presets = new SliderGroup("Presets", null, true);
 				foreach (var line in report.Split('\n').Select(r => r.Trim()).Where(r => !string.IsNullOrWhiteSpace(r) && !r.EndsWith(".bak") && !r.StartsWith("System")))
 				{
-					if (presets == null) presets = new SliderGroup("Presets", null, true);
-					presets.AddButton(line, ("loadPreset", $"\"{line}\""));
+					//presets.AddPresetButton(line);
+					var btn = new Button(line);
+					btn.Click += (o, e) =>
+					{
+						lock (queueLock)
+						{
+							tbPreset.Text = line;
+							sendQueue["loadPreset"] = $"\"{line}\"";
+							sendTimer.Change(50, Timeout.Infinite);
+						}
+					};
+					presets.AddControl(btn);
 				}
-				if (presets != null) presets.Dump();
-				//break;
+				var saveBtn = new Button("Save");
+				saveBtn.Click += (o, e) =>
+				{
+					lock (queueLock)
+					{
+						sendQueue["savePreset"] = $"\"{tbPreset.Text}\"";
+						sendTimer.Change(50, Timeout.Infinite);
+					}
+				};
+				
+				presets.AddControl(new Label("Preset name:"));			
+				presets.AddControl(tbPreset);
+				presets.AddControl(saveBtn);
+				
+				presets.Dump();
 				
 				port.Write("dumpAll();");
-				Thread.Sleep(20);
+				Thread.Sleep(100);
 				report = port.ReadExisting();
 				
 				SliderGroup group = null;
@@ -427,9 +452,14 @@ class SliderGroup
 		return this;
 	}
 	
+	public SliderGroup AddControl(Control c)
+	{
+		sp.Children.Add(c);
+		return this;
+	}
+	
 	public FieldSet Dump() => new FieldSet(name, sp).Dump();
 }
-
 
 void Main()
 {

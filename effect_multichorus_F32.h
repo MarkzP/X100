@@ -31,7 +31,6 @@ class AudioEffectMultiChorus_F32 :
     }
 
     AudioEffectMultiChorus_F32(const AudioSettings_F32 &settings): AudioStream_F32(1, inputQueueArray),
-      _lfo(settings.sample_rate_Hz),
       _dryFilter(settings.sample_rate_Hz),
       _preEffectFilter(settings.sample_rate_Hz),
       _postEffectFilterL(settings.sample_rate_Hz),
@@ -42,7 +41,7 @@ class AudioEffectMultiChorus_F32 :
 
     void begin()
     {
-      _delay.begin(_delayline, _delay_samples);
+      _voices.begin(_delayline, _delay_samples);
     }
 
     void type(Type ct)
@@ -115,23 +114,13 @@ class AudioEffectMultiChorus_F32 :
 
       _preEffectFilter.filterBlock(blockDry, blockPre);
 
-      float feedback = _feedback;
       for (uint16_t i = 0; i < blockPre->length; i++)
       {
-        _lfo.increment();
+        _voices.process(blockPre->data[i]);
 
-        _delay.write(blockPre->data[i] + feedback);
-
-        feedback = 0.0f;
-        float L = 0.0f;
-        float R = 0.0f;
-
-        _voices.process(_lfo, _delay, feedback, L, R);
-
-        blockL->data[i] = L;
-        blockR->data[i] = R;
+        blockL->data[i] = _voices.L;
+        blockR->data[i] = _voices.R;
       }
-      _feedback = feedback;
 
       _dryFilter.filterBlock(blockDry);
       BlockOperations::scale(blockDry, _mix_dry);
@@ -157,11 +146,25 @@ class AudioEffectMultiChorus_F32 :
     static constexpr int _max_voices = 4;
     static constexpr float _delay_time_ms = 17.0f;
 
-    typedef TriangleLfo Lfo;
-    typedef LQModDelay ChorusDelay;
+    typedef SineLfo Lfo;
+
+#ifdef LQ
+    typedef LQDelay ChorusDelay;
+    typedef int16_t CDT;
+#else
+    typedef Delay ChorusDelay;
+    typedef float CDT;
+#endif
     
-    static constexpr int _delay_samples = ChorusDelay::bufferSize(_delay_time_ms);
-    int16_t _delayline[_delay_samples];
+    static constexpr float _sample_rate_Hz = AUDIO_SAMPLE_RATE_EXACT;
+    static constexpr int _delay_samples = ChorusDelay::bufferSizeMs(_delay_time_ms);
+    CDT _delayline[_delay_samples];
+    
+    static float delayToSamples(float ms)
+    {
+      ms = ms < 0.0f ? 0.0f : ms;
+      return ms * _sample_rate_Hz * 0.001f;
+    }
 
     class Voice
     {
@@ -173,8 +176,7 @@ class AudioEffectMultiChorus_F32 :
           _min = 0.0f;
           _range = 0.0f;
           _depth = 1.0f;
-          _smooth = 0.001f;
-          _resonance = 0.0f;
+          _smooth = 0.0005f;
           _mixL = 0.0f;
           _mixR = 0.0f;
           _wet = 0.0f;
@@ -213,12 +215,6 @@ class AudioEffectMultiChorus_F32 :
           return *this;
         }
 
-        Voice& resonance(float resonance)
-        {
-          _resonance = resonance < 0.0f ? 0.0f : resonance > 1.0f ? 1.0f : resonance;
-          return *this;
-        }
-
         Voice& mixL(float mixL)
         {
           _mixL = mixL;
@@ -241,12 +237,12 @@ class AudioEffectMultiChorus_F32 :
         {
           _wetL = _wet * _mixL;
           _wetR = _wet * _mixR;
-          _active = _wetL != 0.0f || _wetR != 0.0f || _resonance != 0.0f;
+          _active = _wetL != 0.0f || _wetR != 0.0f;
           
-          // Serial.printf("_offset=%.2f, _min=%.1f, _range=%.1f, _depth=%.2f, _smooth=%.5f, _resonance=%.2f, _wetL=%.2f, _wetR=%.2f, _active=%d\n", _offset, _min, _range, _depth, _smooth, _resonance, _wetL, _wetR, _active);
+          // Serial.printf("_offset=%.2f, _min=%.1f, _range=%.1f, _depth=%.2f, _smooth=%.5f, _wetL=%.2f, _wetR=%.2f, _active=%d\n", _offset, _min, _range, _depth, _smooth, _wetL, _wetR, _active);
         }
 
-        void process(Lfo& lfo, ChorusDelay& delay, float& feedback, float&L, float& R)
+        void process(Lfo& lfo, ChorusDelay& delay, float&L, float& R)
         {
           if (!_active) return;
 
@@ -261,42 +257,45 @@ class AudioEffectMultiChorus_F32 :
 
           float sample = delay.read(mod_index);
 
-          feedback += sample * _resonance;
           L += sample * _wetL;
           R += sample * _wetR;
         }
 
       private:
-        static constexpr float _sample_rate_Hz = AUDIO_SAMPLE_RATE_EXACT;
         bool _active = false;
         float _offset = 0.0f;
         float _min = 0.0f;
         float _range = 0.0f;
         float _depth = 1.0f;
-        float _smooth = 0.001f;
-        float _resonance = 0.0f;
+        float _smooth = 0.0005f;
         float _mixL = 0.0f;
         float _mixR = 0.0f;
         float _wet = 0.0f;
         float _wetL = 0.0f;
         float _wetR = 0.0f;
-
         float _mod = 0.0f;
-
-        float delayToSamples(float ms)
-        {
-          ms = ms < 0.0f ? 0.0f : ms;
-          return ms * _sample_rate_Hz * 0.001f;
-        }
     };
 
     template <int N = 4>
     class Voices
     {
       public:
-        void process(Lfo& lfo, ChorusDelay& delay, float& feedback, float&L, float& R)
+        void begin(CDT *delay, int d_length)
         {
-          for (int i = 0; i < N; i++) _v[i].process(lfo, delay, feedback, L, R);
+          _delay.begin(delay, d_length);
+        }
+
+        void process(float sample)
+        {
+          _lfo.increment();
+
+          float feedback = _feedback * _delay.read(_fb_samples);
+          _delay.write(sample + feedback);
+          
+          L = 0.0f;
+          R = 0.0f;
+
+          for (int i = 0; i < N; i++) _v[i].process(_lfo, _delay, L, R);
         }
         
         Voice& operator[](int index)
@@ -306,9 +305,17 @@ class AudioEffectMultiChorus_F32 :
         
         Voices& reset()
         {
+          _feedback = 0.0f;
+          _fb_samples = 0.0f;
           for (int i = 0; i < N; i++) _v[i].reset();
           return *this;
         }
+
+        Voices& freq(float freq)
+        {
+          _lfo.freq(freq);
+          return *this;
+        }       
 
         Voices& min(float min)
         {
@@ -334,6 +341,13 @@ class AudioEffectMultiChorus_F32 :
           return *this;
         }
 
+        Voices& feedback(float feedback, float time)
+        {
+          _feedback = feedback < -1.0f ? -1.0f : feedback > 1.0f ? 1.0f : feedback;
+          _fb_samples = delayToSamples(time < 0.0f ? 0.0f : time);
+          return *this;
+        }
+
         Voices& wet(float wet)
         {
           for (int i = 0; i < N; i++) _v[i].wet(wet);
@@ -345,8 +359,15 @@ class AudioEffectMultiChorus_F32 :
           for (int i = 0; i < N; i++) _v[i].begin();
         }
 
+        float L = 0.0f;
+        float R = 0.0f;
+
       private:
         Voice _v[N];
+        Lfo _lfo;
+        ChorusDelay _delay;
+        float _feedback = 0.0f;
+        float _fb_samples = 0.0f;
     };
 
     // controls
@@ -354,19 +375,17 @@ class AudioEffectMultiChorus_F32 :
     float _rate = 0.5f;
     float _depth = 0.5f;
     float _resonance = 0.5f;
+    float _feedback = 0.0f;
     float _color = 0.5f;
     float _wet = 1.0f;
     float _dry = 1.0f;
 
-    Lfo _lfo;
-    ChorusDelay _delay;
     CascadeBiquad<> _dryFilter;
     CascadeBiquad<> _preEffectFilter;
     CascadeBiquad<> _postEffectFilterL;
     CascadeBiquad<> _postEffectFilterR;
     Voices<_max_voices> _voices;
 
-    float _feedback = 0.0f;
     float _mix_dry = 1.0f;
     float _mix_wet = 0.0f;
 
@@ -411,11 +430,11 @@ class AudioEffectMultiChorus_F32 :
           if (typeChanged)
           {
             reset();
-            _preEffectFilter
-                .setHighpass(100.0f);
+            //_preEffectFilter
+            //    .setHighpass(100.0f);
             _voices
                 .range(6.0f)
-                .smooth(0.001f);
+                .smooth(0.0005f);
             _voices[0]
                 .mixL(1.0f);
             _voices[1]
@@ -424,19 +443,15 @@ class AudioEffectMultiChorus_F32 :
                 .mixR(0.6f);
             _voices[2]
                 .mixR(1.0f);
-            _voices[3]
-                .range(4.0f);
           }
 
-          _lfo.freq(mapExp(_rate, 0.2f, 3.0f));
+          _voices.freq(mapExp(_rate, 0.2f, 3.0f));
           _voices
               .min(mapExp(_color, 6.0f, 12.0f))
-              .depth(mapExp(_depth, 0.2f, 1.0f));
+              .depth(mapExp(_depth, 0.2f, 1.0f))
+              .feedback(-_resonance * 0.7f, mapExp(_color, 6.0f, 12.0f) + mapExp(_depth, 0.2f, 1.0f));
           _voices[1]
               .min(mapExp(_color, 2.0f, 5.0f));
-          _voices[3]
-              .min(0.0f)
-              .resonance(mapExp(_resonance, 0.3f, 0.83f));
           break;
 
         case TSC:
@@ -445,7 +460,8 @@ class AudioEffectMultiChorus_F32 :
             reset();
             _preEffectFilter
                 .setLowpass(9000.0f);
-            _voices.min(3.0f);
+            _voices
+                .min(3.0f);
             _voices[0]
                 .range(13.0f)
                 .mixL(1.0)
@@ -458,17 +474,12 @@ class AudioEffectMultiChorus_F32 :
                 .range(14.0f)
                 .mixL(0.014f)
                 .mixR(1.0);
-            _voices[3]
-                .min(0.5f)
-                .range(5.0f);
           }
 
-          _lfo.freq(mapExp(_rate, 0.2f, 3.5f, 3.0f));
+          _voices.freq(mapExp(_rate, 0.2f, 3.5f, 3.0f));
           _voices
             .depth(mapExp(_depth, 0.2f, 1.0f))
-            .smooth(mapExp(_color, 0.00002f, 0.0075f, 3.0f));
-          _voices[3]
-            .resonance(mapExp(_resonance, 0.3f, 0.8f));
+            .smooth(mapExp(_color, 0.00001f, 0.0005f, 3.0f));
           break;
 
         case CE2:
@@ -476,19 +487,19 @@ class AudioEffectMultiChorus_F32 :
           {
             reset();
             _preEffectFilter
-                .setHighpass1p1z(100.0f);
+                .setHighpass1p1z(150.0f);
             _postEffectFilterL
                 .setLowpass(6900.0f);
             _postEffectFilterR
                 .setLowpass(6900.0f);
             _voices[0]
                 .range(7.0f)
-                .smooth(0.075f)
+                .smooth(0.00075f)
                 .mixL(1.0)
                 .mixR(-1.0f);
           }
 
-          _lfo.freq(mapExp(_rate, 0.3f, 3.5f));
+          _voices.freq(mapExp(_rate, 0.3f, 3.5f));
           _voices
               .min(mapExp(_color, 3.0f, 7.5f, 1.0f))
               .depth(mapExp(_depth, 0.3f, 1.0f));
@@ -504,16 +515,15 @@ class AudioEffectMultiChorus_F32 :
                 .setLowpass(6900.0f);
             _voices[0]
                 .range(8.0f)
-                .smooth(0.0075f)
+                .smooth(0.00075f)
                 .mixL(1.0f)
                 .mixR(-1.0f);
           }
 
-          _lfo.freq(mapExp(_rate, 0.0625, 6.5f, 3.5f));
+          _voices.freq(mapExp(_rate, 0.0625, 6.5f, 3.5f));
           _voices[0]
               .min(mapExp(_color, 0.0f, 0.5f))
-              .depth(mapExp(_depth, 0.3f, 1.0f, 3.0f))
-              .resonance(mapExp(_resonance, 0.6f, 0.85f));
+              .depth(mapExp(_depth, 0.3f, 1.0f, 3.0f));
           break;
 
         case DD1:
@@ -523,9 +533,9 @@ class AudioEffectMultiChorus_F32 :
           if (typeChanged)
           {
             reset();
-            _lfo.freq(_type == DD1 || _type == DD2 ? 0.25f : 0.5f);
+            _voices.freq(_type == DD1 || _type == DD2 ? 0.25f : 0.5f);
             _preEffectFilter
-                .setHighpass(100.0f);
+                .setHighpass1p1z(150.0f);
             _postEffectFilterL
                 .setLowpass(9600.0f);
             _postEffectFilterR

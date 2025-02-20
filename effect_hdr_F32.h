@@ -22,6 +22,22 @@ class AudioEffectHDR_F32 :
     {
     }
 
+    void setOutput(int output)
+    {
+      _out = output;
+    }
+
+    void setGain(float gain)
+    {
+      _auto = false;
+      _gain = gain;
+    }
+
+    float db_low() { return _rd.db(); }
+    float db_high() { return _hd.db(); }
+    float lx() { return _lx; }
+    float gain() { return _gain; }
+
     virtual void update(void)
     {
       audio_block_f32_t *blockL = AudioStream_F32::receiveWritable_f32(0);
@@ -38,13 +54,17 @@ class AudioEffectHDR_F32 :
 
       for (uint16_t i = 0; i < blockL->length; i++)
       {
-        float ls = blockL->data[i] * gain;
+        float rs = blockL->data[i];
+        float ls = rs * gain;
         float hs = blockH->data[i];
+
+        float rx = 0.0f;
         float lx = 0.0f;
         float hx = 1.0f;
 
+        _rd.detect(rs);
         float low = _ld.detect(ls);
-        float high = _lh.detect(hs);
+        float high = _hd.detect(hs);
         float r = 0.0f;
 
         if (high < _min)
@@ -65,10 +85,28 @@ class AudioEffectHDR_F32 :
           hx = 0.0f;
         }
 
-        blockL->data[i] = (hs * hx) + (ls * lx);
+        if (_out == 1)
+        {
+          rx = 1.0f;
+          lx = 0.0f;
+          hx = 0.0f;          
+        }
+        else if (_out == 2)
+        {
+          rx = 0.0f;
+          lx = 0.0f;
+          hx = 1.0f;           
+        }
 
-        gain += r;
-        _error = r;
+        blockL->data[i] = (hs * hx) + (ls * lx) + (rs * rx);
+
+        if (_auto) 
+        {
+          gain += r;
+          gain = gain < _ming ? _ming : gain > _maxg ? _maxg : gain;
+        }        
+        
+        _lx = lx;
       }
 
       _gain = gain;
@@ -80,12 +118,17 @@ class AudioEffectHDR_F32 :
 
   private:
     audio_block_f32_t *inputQueueArray[2];
+    Detector _rd;
     Detector _ld;
-    Detector _lh;
+    Detector _hd;
     static constexpr float _min = 0.001f; // ~ -60.0db
     static constexpr float _max = 0.5f;    // ~ -6.0db
+    bool _auto = true;
     float _gain = 4.0f;
-    float _error = 0.0f;
+    float _maxg = 6.0f;
+    float _ming = 3.0f;
+    float _lx = 0.0f;
+    int _out = 0;
 };
 
 #endif

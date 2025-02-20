@@ -18,7 +18,7 @@ class AudioControlAK4528_F32 //: public AudioControl
     AudioControlAK4528_F32(void) {};
     ~AudioControlAK4528_F32(void) {};
 
-    bool enable()
+    FLASHMEM bool enable()
     {
       CORE_PIN9_PADCONFIG  = IOMUXC_PAD_DSE(1);
       CORE_PIN11_PADCONFIG = IOMUXC_PAD_DSE(1);
@@ -38,7 +38,7 @@ class AudioControlAK4528_F32 //: public AudioControl
       return true;
     }
 
-    bool disable(void)
+    FLASHMEM bool disable(void)
     {
       digitalWriteFast(PIN_AK4528_PDN, LOW);
       delay(50);
@@ -46,34 +46,43 @@ class AudioControlAK4528_F32 //: public AudioControl
       return true;
     }
 
-    bool volume(float n) {
+    FLASHMEM bool volume(float n) {
       return true;
     }
-    bool inputSelect(int n) {
+
+    FLASHMEM bool inputSelect(int n) {
       return true;
     }
-    bool inputLevel(float n) {
+
+    FLASHMEM bool inputLevel(float n) {
       return true;
     }
-    bool lineInLevel(uint8_t n) {
+
+    FLASHMEM bool lineInLevel(uint8_t n) {
       return lineInLevel(n, n);
     }
-    bool lineInLevel(uint8_t left, uint8_t right) {
+
+    FLASHMEM bool lineInLevel(uint8_t left, uint8_t right) {
       return true;
     }
-    uint16_t lineOutLevel(uint8_t n) {
+
+    FLASHMEM uint16_t lineOutLevel(uint8_t n) {
       return 0;
     }
-    uint16_t lineOutLevel(uint8_t left, uint8_t right) {
+
+    FLASHMEM uint16_t lineOutLevel(uint8_t left, uint8_t right) {
       return 0;
     }
-    uint16_t adcHighPassFilterEnable(void) {
+
+    FLASHMEM uint16_t adcHighPassFilterEnable(void) {
       return 0;
     }
-    uint16_t adcHighPassFilterFreeze(void) {
+
+    FLASHMEM uint16_t adcHighPassFilterFreeze(void) {
       return 0;
     }
-    uint16_t adcHighPassFilterDisable(void) {
+
+    FLASHMEM uint16_t adcHighPassFilterDisable(void) {
       return 0;
     }
 };

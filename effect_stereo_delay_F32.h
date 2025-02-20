@@ -68,7 +68,7 @@ class AudioEffectStereoDelay_F32 :
 
     void repeat(float repeat)
     {
-      _repeat = repeat < 0.0f ? 0.0f : repeat > 1.0f ? 1.0f : repeat;
+      _repeat = (repeat < 0.0f ? 0.0f : repeat > 1.0f ? 1.0f : repeat) * 1.0f;
     }
 
     void filter(float freq, float q, float dry, float low, float band, float high)
@@ -111,13 +111,13 @@ class AudioEffectStereoDelay_F32 :
         _smoothed_samples += (_samples - _smoothed_samples) * 0.00075f;
         _smoothed_lfo += (_lfo.increment() - _smoothed_lfo) * 0.0001f;
 
-        float sample = ((blockL->data[i] + blockR->data[i]) * drive) + _feedback;        
-
-        sample = _svf.filter(sample);
+        float sample = (blockL->data[i] + blockR->data[i] + _feedback) * drive;
+        
         sample = sample < -1.0f ? -1.0f : sample > 1.0f ? 1.0f : sample;
         sample = (sample - ((sample * sample * sample) * (1.0f / 3.0f))) * (3.0f / 2.0f);
         sample *= attn;
-        
+        sample = _svf.filter(sample);
+
         _delay.write(sample);
 
         float modulation = _smoothed_lfo * _depth;
@@ -143,8 +143,8 @@ class AudioEffectStereoDelay_F32 :
 
   private:
     typedef TriangleLfo Lfo;
-    typedef LQModDelay Delay;
-    typedef StateVariableFilter Filter;
+    typedef LQDelay Delay;
+    typedef StateVariableFilter<> Filter;
 
     audio_block_f32_t *inputQueueArray[2];
     float _sample_rate_Hz;

@@ -8,8 +8,8 @@
 #define PIN_BTN_0       3
 #define PIN_BTN_1       2
 #define PIN_BTN_2       1
-#define PIN_BTN_3       0
-#define PIN_BTN_4       6
+//#define PIN_BTN_3       0
+//#define PIN_BTN_4       6
 
 #define PIN_POT_0      14
 #define PIN_POT_1      15
@@ -83,6 +83,24 @@ FLASHMEM void clear()
 FLASHMEM void displayTunerHW(float freq, int note, int semitone, float cents)
 {
   char buf[] = "        ";
+
+  int i = 1;
+  switch (note)
+  {
+    case 0:  buf[i] = 'A'; break;
+    case 1:  buf[i] = 'A'; buf[i + 1] = '#'; break;
+    case 2:  buf[i] = 'B'; break;
+    case 3:  buf[i] = 'C'; break;
+    case 4:  buf[i] = 'C'; buf[i + 1] = '#'; break;
+    case 5:  buf[i] = 'D'; break;
+    case 6:  buf[i] = 'D'; buf[i + 1] = '#'; break;
+    case 7:  buf[i] = 'E'; break;
+    case 8:  buf[i] = 'F'; break;
+    case 9:  buf[i] = 'F'; buf[i + 1] = '#'; break;
+    case 10: buf[i] = 'G'; break;
+    case 11: buf[i] = 'G'; buf[i + 1] = '#'; break;
+  }
+  
   int c = round(cents * 0.25f);
   switch (c)
   {
@@ -102,22 +120,14 @@ FLASHMEM void displayTunerHW(float freq, int note, int semitone, float cents)
     case 6:
     case 7:   buf[7] = ']'; break;
   }
-
-  int i = c == -3 ? 2 : 1;
-  switch (note)
-  {
-    case 0:  buf[i] = 'A'; break;
-    case 2:  buf[i] = 'B'; break;
-    case 5:  buf[i] = 'D'; break;
-    case 7:  buf[i] = 'E'; break;
-    case 10: buf[i] = 'G'; break;
-  }
-
+  
   print(buf);
 }
 
 FLASHMEM void HW_Setup()
 {
+  //hdr.setGain(4.039748f);
+  
   codec.enable();
 
   SPI.begin();
@@ -126,6 +136,7 @@ FLASHMEM void HW_Setup()
   SPI.setDataMode(SPI_MODE0);
   pinMode(PIN_SPI_CS, OUTPUT);
   digitalWriteFast(PIN_SPI_CS, HIGH);
+  clear();
 }
 
 FLASHMEM void HW_Loop()
