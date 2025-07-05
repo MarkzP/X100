@@ -1,5 +1,7 @@
 
 #define UX1
+#define USB_INPUT
+#define USB_OUTPUT
 
 #include "effect_autowah_F32.h"
 #include "effect_cabsim_F32.h"
@@ -50,9 +52,11 @@ AudioEffectStereoDelay_F32 stereodelay;    //xy=1792.3333320617676,195.999996185
 AudioEffectMyVerb_F32    reverb;         //xy=1929.3333320617676,195.99999618530273
 AudioEffectMultiband_F32 sonic;          //xy=2054.3333320617676,195.99999618530273
 AudioEffectCabSim_F32    cabsim;         //xy=2178.3333320617676,195.99999618530273
-AudioAnalyzePeak_F32     levelOutR;      //xy=2309.3333320617676,259.99999618530273
-AudioAnalyzePeak_F32     levelOutL;      //xy=2320.3333320617676,129.99999618530273
-AudioOutputI2S_F32       audioOut;       //xy=2323.3333320617676,195.99999618530273
+AudioAnalyzePeak_F32     levelOutL;      //xy=2342.333251953125,99
+AudioMixer4_F32          mixerR;       //xy=2346,244
+AudioAnalyzePeak_F32     levelOutR;      //xy=2346.333251953125,318
+AudioMixer4_F32          mixerL;       //xy=2347,172
+AudioOutputI2S_F32       audioOut;       //xy=2530.333251953125,207
 AudioConnection_F32          patchCord1(audioIn, 0, hdr, 0);
 AudioConnection_F32          patchCord2(audioIn, 1, hdr, 1);
 AudioConnection_F32          patchCord3(testTone, 0, inputMixer, 2);
@@ -77,10 +81,12 @@ AudioConnection_F32          patchCord21(reverb, 0, sonic, 0);
 AudioConnection_F32          patchCord22(reverb, 1, sonic, 1);
 AudioConnection_F32          patchCord23(sonic, 0, cabsim, 0);
 AudioConnection_F32          patchCord24(sonic, 1, cabsim, 1);
-AudioConnection_F32          patchCord25(cabsim, 0, audioOut, 0);
-AudioConnection_F32          patchCord26(cabsim, 0, levelOutL, 0);
-AudioConnection_F32          patchCord27(cabsim, 1, audioOut, 1);
-AudioConnection_F32          patchCord28(cabsim, 1, levelOutR, 0);
+AudioConnection_F32          patchCord25(cabsim, 0, levelOutL, 0);
+AudioConnection_F32          patchCord26(cabsim, 0, mixerL, 0);
+AudioConnection_F32          patchCord27(cabsim, 1, levelOutR, 0);
+AudioConnection_F32          patchCord28(cabsim, 1, mixerR, 0);
+AudioConnection_F32          patchCord29(mixerR, 0, audioOut, 1);
+AudioConnection_F32          patchCord30(mixerL, 0, audioOut, 0);
 // GUItool: end automatically generated code
 
 
@@ -93,15 +99,25 @@ AudioConnection          patchCordTuner1(toTuner, tuner);
 
 #ifdef AUDIO_INTERFACE
 
+#ifdef USB_INPUT
 AudioConvert_F32toI16    toUSBL;
 AudioConvert_F32toI16    toUSBR;
-
-AudioConnection_F32      patchCordAI1(cabsim, 0, toUSBL, 0);
-AudioConnection_F32      patchCordAI2(cabsim, 1, toUSBR, 0);
-
 AudioOutputUSB           usbOut;
+AudioConnection_F32      patchCordAI1(audioIn, 0, toUSBL, 0);
+AudioConnection_F32      patchCordAI2(audioIn, 1, toUSBR, 0);
 AudioConnection          patchCordUSB_OL(toUSBL, 0, usbOut, 0);
 AudioConnection          patchCordUSB_OR(toUSBR, 0, usbOut, 1);
+#endif
+
+#ifdef USB_OUTPUT
+AudioInputUSB            usbIn;
+AudioConvert_I16toF32    fromUSBL;
+AudioConvert_I16toF32    fromUSBR;
+AudioConnection          patchCordUSB_IL_16(usbIn, 0, fromUSBL, 0);
+AudioConnection          patchCordUSB_IR_16(usbIn, 1, fromUSBR, 0);
+AudioConnection_F32      patchCordUSB_IL_32(fromUSBL, 0, mixerL, 1);
+AudioConnection_F32      patchCordUSB_IR_32(fromUSBR, 0, mixerR, 1);
+#endif
 
 #endif
 /**********************************************************************************************************************/
@@ -226,10 +242,21 @@ FLASHMEM void readLevels()
   }
 }
 
+FLASHMEM void usbVolume()
+{
+#ifdef AUDIO_INTERFACE
+#ifdef USB_OUTPUT
+  float volume = usbIn.volume();
+  mixerL.gain(1, volume);
+  mixerR.gain(1, volume);
+#endif
+#endif
+}
 
 FLASHMEM void setVolume(float volume = 1.0f)
 {
-  audioOut.setGain(volume);
+  mixerL.gain(0, volume);
+  mixerR.gain(0, volume);
 }
 
 /*******************************************************************************************************************/
@@ -263,6 +290,7 @@ FLASHMEM void setup()
 
 void loop() {
   readLevels();
+  usbVolume();
   HW_Loop();
   UI_Loop();
   handleSercom();
