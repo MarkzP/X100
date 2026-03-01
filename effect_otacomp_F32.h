@@ -119,7 +119,6 @@ class AudioEffectOtaComp_F32 :
     float _attack;
     
     float _gain = _mingain;
-    float _fgain = _mingain;
 };
 
 #endif

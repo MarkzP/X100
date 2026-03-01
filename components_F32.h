@@ -329,8 +329,9 @@ class CascadeBiquad: public BiquadBase
     {
       if (_stages == N) return false;
 
-      __disable_irq();
       int c_offset = _stages++ * _coeffs_per_stages;
+      
+      __disable_irq();
       _coeffs[c_offset + 0] = b0;
       _coeffs[c_offset + 1] = b1;
       _coeffs[c_offset + 2] = b2;
@@ -449,6 +450,7 @@ class HQBiquad: public BiquadBase
       _a1 = a1;
       _a2 = a2;
       __enable_irq();
+
       return true;
     }
 
@@ -530,6 +532,7 @@ class HQ1p1zBiquad: public BiquadBase
       _b1 = b1;
       _a1 = a1;
       __enable_irq();
+      
       return true;
     }
 

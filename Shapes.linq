@@ -9,9 +9,9 @@ void Main()
 	var chart = input.Chart(x => x)
 		.AddYSeries(x => hard(x), LINQPad.Util.SeriesType.Spline)
 		//.AddYSeries(x => saturation(x), LINQPad.Util.SeriesType.Spline)
-		.AddYSeries(x => cubic(x), LINQPad.Util.SeriesType.Spline)
-		.AddYSeries(x => fifth(x), LINQPad.Util.SeriesType.Spline)
-		//.AddYSeries(x => nonlinear(x, 0.5f, 1.0f), LINQPad.Util.SeriesType.Spline)
+		//.AddYSeries(x => cubic(x), LINQPad.Util.SeriesType.Spline)
+		//.AddYSeries(x => fifth(x), LINQPad.Util.SeriesType.Spline)
+		.AddYSeries(x => nonlinear(x, 1.0f, 1.0f), LINQPad.Util.SeriesType.Spline)
 		.ToWindowsChart();
 		
 	var area = chart.ChartAreas.First();
@@ -30,7 +30,7 @@ void Main()
 	chart.Dump();
 }
 
-float gain = 1.0f;
+float gain = 10.0f;
 
 float clip(float x) => x < -1.0f ? -1.0f : x > 1.0f ? 1.0f: x;
 float powf(float x, float n) => (float)Math.Pow(x, n);
@@ -70,7 +70,7 @@ float nonlinear(float sample, float color, float s)
 	float _ncurve = color < 0.5f ? 2.0f : color > 1.0f ? 0.0f : 2.0f - ((color - 0.5f) * 4.0f);
 	float _pcomp = 1.0f / (_pcurve + 1.0f);
 	float _ncomp = 1.0f / (_ncurve + 1.0f);
-	float _skew = s < 0.0f ? 1.0f : s > 1.0f ? 0.25f : 1.0f - (s * 0.75f);
+	float _skew = s < 0.0f ? 1.0f : s > 1.0f ? 0.0f : 1.0f - s;
 
 
 	float pcomp = _pcomp;
@@ -84,18 +84,18 @@ float nonlinear(float sample, float color, float s)
 
         if (sample > 0.0f)
         {
-          sample *= pcomp;
-          sample = pcurvep1 * sample / (1.0f + (pcurve * sample));
+          //sample *= pcomp;
+          //sample = pcurvep1 * sample / (1.0f + (pcurve * sample));
         }
         else
         {
-          sample *= ncomp;
-          sample = ncurvep1 * sample / (1.0f - (ncurve * sample));
+          //sample *= ncomp;
+          //sample = ncurvep1 * sample / (1.0f - (ncurve * sample));
         }
 
         sample *= _twoThirds;
-        sample = clip(sample);
-        sample = (sample - (cube(sample) * _oneThird)) * _threeHalfs;
+        //sample = clip(sample);
+        //sample = (sample - (cube(sample) * _oneThird)) * _threeHalfs;
 
         sample *= (fabsf(sample) + skew) / (square(sample) + skewm1 * fabsf(sample) + 1.0f);
 	
