@@ -969,7 +969,7 @@ class Potentiometer: public IBindable
     float _min = 150.0f;
     float _max = 850.0f;
     const float _trig = 0.0075f;
-    const float _alpha = 0.05f;
+    const float _alpha = 0.25f;
     bool _triggered = false;
     elapsedMillis _lastUpdate = 0;
     elapsedMillis _lastTrig = 0;
