@@ -120,6 +120,11 @@ class AudioEffectCabSim_F32 :
         _fpostL.filterBlock(blockL);
         _fpostR.filterBlock(blockR);
       }
+      else
+      {
+        BlockOperations::scale(blockL, 0.5f);
+        BlockOperations::scale(blockR, 0.5f);
+      }
 
       AudioStream_F32::transmit(blockL, 0);
       AudioStream_F32::transmit(blockR, 1);

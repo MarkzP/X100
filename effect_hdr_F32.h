@@ -85,17 +85,22 @@ class AudioEffectHDR_F32 :
           hx = 0.0f;
         }
 
-        if (_out == 1)
+        switch (_out)
         {
-          rx = 1.0f;
-          lx = 0.0f;
-          hx = 0.0f;          
-        }
-        else if (_out == 2)
-        {
-          rx = 0.0f;
-          lx = 0.0f;
-          hx = 1.0f;           
+          case 1:
+            rx = 1.0f;
+            lx = 0.0f;
+            hx = 0.0f;          
+            break;
+          case 2:
+            rx = 0.0f;
+            lx = 0.0f;
+            hx = 1.0f;           
+            break;
+          case 3:
+            rx = 0.0f;
+            lx = 0.0f;
+            hx = 0.0f;
         }
 
         blockL->data[i] = (hs * hx) + (ls * lx) + (rs * rx);

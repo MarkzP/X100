@@ -7,7 +7,7 @@
 EPARAMS(preamp)
 {
   Parameter("level", Parameter::PT_Float, 0.5f),
-  Parameter("Output", Parameter::PT_Enum, 0.0f, 0.0f, 2.0f, 1.0f, (const char*[]){" hdr", " low", "high"}),
+  Parameter("Output", Parameter::PT_Enum, 0.0f, 0.0f, 3.0f, 1.0f, (const char*[]){" hdr", " low", "high", "mute"}),
   Parameter("enable", Parameter::PT_Bool, true),
 };
 EFFECT(preamp)
@@ -548,19 +548,28 @@ EFFECT(cab_sim)
 
 typedef enum
 {
+  r_select_preset,
+  r_select_preset_back,
+  r_tuner,
+  r_tuner_back,
   r_select_effect,
+  r_select_effect_back,
   r_select_param,
   r_select_param_back,
   r_set_value,
   r_binding,
   r_changed_value,
-  r_tuner,
 } r_state_t;
 
 r_state_t _r_state;
 r_state_t _r_prev;
 elapsedMillis _lastStateChange;
 unsigned long _changeTimeout = 0;
+
+FLASHMEM void displayPresetName()
+{
+  print("Preset");
+}
 
 FLASHMEM void displayEffectName(Effect* effect = nullptr)
 {
@@ -586,37 +595,44 @@ FLASHMEM void displayParamValue(Effect* effect = nullptr, Parameter* param = nul
   print(buf);
 }
 
-FLASHMEM void setState(short newState)
+void setState(short newState)
 {
   _changeTimeout = 0;
   _lastStateChange = 0;
 
-  clear();
-
   switch (newState)
   {
+    case r_select_preset:
+    case r_select_preset_back:
+      clear();
+      displayPresetName();
+      break;
+    case r_tuner:
+    case r_tuner_back:
+      clear();
+      print("Tuner");
+      break;
     case r_select_effect:
+    case r_select_effect_back:
+      clear();
       displayEffectName();
       break;
     case r_select_param:
     case r_select_param_back:
+      clear();
       displayParamName();
       break;
     case r_set_value:
+      clear();
       displayParamValue();
       break;
     case r_binding:
+      clear();
       print("binding.");
       _changeTimeout = 5000;
       break;
     case r_changed_value:
       _changeTimeout = 2500;
-      break;
-    case r_tuner:
-      if (_r_state != r_binding && _r_state != r_changed_value)
-      {
-        _changeTimeout = 750;
-      } else newState = _r_state;
       break;
     default: return;
   }
@@ -628,12 +644,12 @@ FLASHMEM void setState(short newState)
   _r_state = (r_state_t)newState;
 }
 
-FLASHMEM void revertState()
+void revertState()
 {
   setState(_r_prev);
 }
 
-FLASHMEM bool updateParam(const char* name, const char* param, float value)
+bool updateParam(const char* name, const char* param, float value)
 {
   Effect *e = Effect::effect(name);
   if (e == nullptr) return false;
@@ -649,12 +665,12 @@ FLASHMEM bool updateParam(const char* name, const char* param, float value)
   return true;
 }
 
-FLASHMEM bool binding()
+bool binding()
 {
   return _r_state == r_binding;
 }
 
-FLASHMEM void checkStateExpiration()
+void checkStateExpiration()
 {
   if (_changeTimeout > 0 && _lastStateChange > _changeTimeout)
   {
@@ -896,21 +912,17 @@ class Potentiometer: public IBindable
 
     FLASHMEM void begin()
     {
-      //pinMode(_pin, INPUT_DISABLE);
-
       _position = rawRead();
       _high = _position + _trig;
       _low = _position - _trig;
-      
-      //_f.begin(50.0f, 2.0f, 0.1f);
     }
 
-    FLASHMEM void update()
+    void update()
     {
-      if (_lastUpdate < 20) return;
+      if (_lastUpdate < 50) return;
       _lastUpdate = 0;
       
-      float bounds = _trig;//binding() ? _trig * 5.0f : _trig;
+      float bounds = _trig;
       _high = _position + bounds;
       _low = _position - bounds;
 
@@ -937,6 +949,7 @@ class Potentiometer: public IBindable
           _param = _effect->param();
           setState(r_set_value);
         }
+
         if (_effect != nullptr)
         {
           if (_param->scaledChange(_position))
@@ -956,11 +969,10 @@ class Potentiometer: public IBindable
     float _min = 150.0f;
     float _max = 850.0f;
     const float _trig = 0.0075f;
-    const float _alpha = 0.5f;
+    const float _alpha = 0.05f;
     bool _triggered = false;
     elapsedMillis _lastUpdate = 0;
     elapsedMillis _lastTrig = 0;
-    //OneEuroFilter _f;
 
     float rawRead()
     {
@@ -1014,7 +1026,7 @@ unsigned long _lastCw;
 unsigned long _lastCcw;
 unsigned long _lastClick;
 
-FLASHMEM void cw()
+void cw()
 {
   unsigned long now = millis();
   if ((now - _lastCcw) < _debounce) return;
@@ -1026,7 +1038,12 @@ FLASHMEM void cw()
 
   switch (_r_state)
   {
+    case r_select_preset:
+    case r_select_preset_back:
+      // TODO: Show next preset name
+      break;
     case r_select_effect:
+    case r_select_effect_back:
       Effect::next();
       displayEffectName();
       break;
@@ -1044,12 +1061,12 @@ FLASHMEM void cw()
     case r_changed_value:
       revertState();
       break;
-    case r_tuner:
+    default:
       break;    
   }
 }
 
-FLASHMEM void ccw()
+void ccw()
 {
   unsigned long now = millis();
   if ((now - _lastCw) < _debounce) return;
@@ -1061,7 +1078,12 @@ FLASHMEM void ccw()
   
   switch (_r_state)
   {
+    case r_select_preset:
+    case r_select_preset_back:
+      // TODO: Show prev preset name
+      break;
     case r_select_effect:
+    case r_select_effect_back:
       Effect::prev();
       displayEffectName();
       break;
@@ -1079,12 +1101,12 @@ FLASHMEM void ccw()
     case r_changed_value:
       revertState();
       break;
-    case r_tuner:
+    default:
       break;
   }      
 }
 
-FLASHMEM void shortClick()
+void shortClick()
 {
   unsigned long now = millis();
   if ((now - _lastClick) < _debounce) return;
@@ -1092,14 +1114,27 @@ FLASHMEM void shortClick()
 
   switch (_r_state)
   {
+    case r_select_preset:
+    case r_select_preset_back:
+      setState(r_tuner);
+      break;
+    case r_tuner:
+      setState(r_select_effect);
+      break;
+    case r_tuner_back:
+      setState(r_select_preset_back);
+      break;
     case r_select_effect:
       setState(r_select_param);
+      break;
+    case r_select_effect_back:
+      setState(r_tuner_back);
       break;
     case r_select_param:
       setState(r_set_value);
       break;
     case r_select_param_back:
-      setState(r_select_effect);
+      setState(r_select_effect_back);
       break;
     case r_set_value:
       setState(r_select_param_back);
@@ -1108,25 +1143,19 @@ FLASHMEM void shortClick()
     case r_changed_value:
       revertState();
       break;
-    case r_tuner:
-      break;
   }
 }
 
-FLASHMEM void longClick()
+void longClick()
 {
   switch (_r_state)
   {
-    case r_select_effect:
-      break;
     case r_select_param:
     case r_select_param_back:
     case r_set_value:
       setState(r_binding);
       break;
-    case r_binding:
-    case r_changed_value:
-    case r_tuner:
+    default:
       break;
   }
 }
@@ -1170,10 +1199,9 @@ FLASHMEM void presetName(const char *name)
 }
 
 
-FLASHMEM void displayTuner(float freq, int note, int semitone, float cents)
+void displayTuner(float freq, int note, int semitone, float cents)
 {
-  if (_r_state == r_binding) return;
-  setState(r_tuner);
+  if (_r_state != r_tuner && _r_state != r_tuner_back) return;
   
   displayTunerHW(freq, note, semitone, cents);
 }
@@ -1210,7 +1238,7 @@ FLASHMEM void UI_Setup()
 }
 
 unsigned long last = 0;
-FLASHMEM void UI_Loop()
+void UI_Loop()
 {
 #ifdef PIN_ENC_A
   long newPos = (knob.read() + 2) / 4;

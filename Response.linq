@@ -9,7 +9,7 @@ void Main()
     var freqs = new float[0];
 	var levelIn = new float[0];
 
-	var amplitude = -3.0f;//-0.615f;
+	var amplitude = 0.0f;//-0.615f;
 	bins = Enumerable.Range(0, 149).ToArray();
 	freqs = bins.Select(i => logFreq(i)).ToArray();
 	levelIn = Enumerable.Range(0, freqs.Length).Select(i => amplitude).ToArray();
@@ -39,8 +39,10 @@ void Main()
 			var report = port.ReadExisting();
 			if (report.Contains("32="))
 			{
+				//port.Dump();
 				port.ReadTimeout = 5000;
-				port.Write("setVolume(0);setInput(0);printLevels(0);printTuner(0);");
+				port.Write("preamp.Output(3);");
+				port.Write("printLevels(0);printTuner(0);");
 				Thread.Sleep(100);
 				port.ReadExisting();
 
@@ -50,10 +52,12 @@ void Main()
 					levelOutsR[i] = -72.0f;
 					for (int j = 0; j < 3; j++)
 					{
-						var msg = $"doTestTone({freqs[i]},{dbToUnit(levelIn[i]).ToString(System.Globalization.CultureInfo.InvariantCulture)});";
+						var msg = $"doTestTone({freqs[i].ToString(System.Globalization.CultureInfo.InvariantCulture)},{dbToUnit(levelIn[i]).ToString(System.Globalization.CultureInfo.InvariantCulture)});";
+						//msg.Dump();
 						port.Write(msg);
 
-						var resp = port.ReadLine();					
+						var resp = port.ReadLine();
+						//resp.Dump();
 						try
 						{
 							var parts = resp.Replace("nan", "NaN").Replace("-NaN", "NaN").Split(',').Select(s => s.Trim());
@@ -69,7 +73,7 @@ void Main()
 					Console.WriteLine($"i={i}: f={freqs[i]:F1}, dB={levelIn[i]:F1} => {levelOutsL[i]:F1}, {levelOutsR[i]:F1}");
 				}
 
-				port.Write("setVolume(1);setInput(1);");
+				port.Write("inputTone(0);setVolume(1);");
 			}
 		}
 	}

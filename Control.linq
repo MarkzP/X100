@@ -243,29 +243,48 @@ class SliderGroup
 				SliderGroup actions = new SliderGroup("Actions", null, true);
 				actions.AddButton("printLevels(1);", ("printLevels", "1"));
 				actions.AddButton("printLevels(0);", ("printLevels", "0"));
+				actions.AddButton("setInput(0);", ("setInput", "0"));
+				actions.AddButton("setInput(1);", ("setInput", "1"));
 				actions.AddButton("stats();", ("stats", "0"));
 				actions.AddControl(new Label(port.PortName));
 				actions.AddControl(tbCom);
 				actions.Dump();
 				
 				
-				SliderGroup tones = new SliderGroup("Tones", null, true);
+				SliderGroup tones = new SliderGroup("Input Tones", null, true);
 				tones.AddButton("Mute", ("tone", "1000,0"));
-				tones.AddButton("50", ("tone", "53,1"));
-				tones.AddButton("100", ("tone", "103,1"));
-				tones.AddButton("300", ("tone", "303,1"));
-				tones.AddButton("500", ("tone", "503,1"));
-				tones.AddButton("1.0k", ("tone", "1003,1"));
-				tones.AddButton("2.0k", ("tone", "2003,1"));
-				tones.AddButton("3.0k", ("tone", "3003,1"));
+				tones.AddButton("50", ("tone", "50,1"));
+				tones.AddButton("100", ("tone", "100,1"));
+				tones.AddButton("300", ("tone", "300,1"));
+				tones.AddButton("500", ("tone", "500,1"));
+				tones.AddButton("1.0k", ("tone", "1000,1"));
+				tones.AddButton("2.0k", ("tone", "2000,1"));
+				tones.AddButton("3.0k", ("tone", "3000,1"));
 				tones.AddButton("4.9k", ("tone", "4905,1"));
-				tones.AddButton("5.0k", ("tone", "5003,1"));
-				tones.AddButton("5.1k", ("tone", "5103,1"));
-				tones.AddButton("5.5k", ("tone", "5503,1"));
-				tones.AddButton("10k", ("tone", "10003,1"));
-				tones.AddButton("15k", ("tone", "15003,1"));
-				
+				tones.AddButton("5.0k", ("tone", "5000,1"));
+				tones.AddButton("5.1k", ("tone", "5100,1"));
+				tones.AddButton("5.5k", ("tone", "5500,1"));
+				tones.AddButton("10k", ("tone", "10000,1"));
+				tones.AddButton("15k", ("tone", "15000,1"));
 				tones.Dump();
+				
+				SliderGroup outputTones = new SliderGroup("Output Tones", null, true);
+				outputTones.AddButton("Mute", ("outputTone", "1000,0"));
+				outputTones.AddButton("1", ("outputTone", "1,1"));
+				outputTones.AddButton("10", ("outputTone", "10,1"));
+				outputTones.AddButton("20", ("outputTone", "20,1"));
+				outputTones.AddButton("50", ("outputTone", "50,1"));
+				outputTones.AddButton("100", ("outputTone", "100,1"));
+				outputTones.AddButton("300", ("outputTone", "300,1"));
+				outputTones.AddButton("500", ("outputTone", "500,1"));
+				outputTones.AddButton("1.0k", ("outputTone", "1000,1"));
+				outputTones.AddButton("2.0k", ("outputTone", "2000,1"));
+				outputTones.AddButton("5.0k", ("outputTone", "5000,1"));
+				outputTones.AddButton("10k", ("outputTone", "10000,1"));
+				outputTones.AddButton("15k", ("outputTone", "15000,1"));
+				outputTones.AddButton("20k", ("outputTone", "20000,1"));
+				outputTones.Dump();
+
 				
 				port.Write("listPresets();");
 				Thread.Sleep(100);

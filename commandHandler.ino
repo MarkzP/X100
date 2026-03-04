@@ -1,11 +1,13 @@
 #include "Effect.h"
 
-FLASHMEM void handleCommand() {
+void handleCommand() {
   if (strncmp("stats", com_instance, maxLen) == 0) Serial.printf("%.1f%%/%.1f%%, 16=%u/%u, 32=%u/%u, G=%.4f\r\n", AudioProcessorUsage(), AudioProcessorUsageMax(), AudioMemoryUsage(), AudioMemoryUsageMax(), AudioMemoryUsage_F32(), AudioMemoryUsageMax_F32(), hdr.gain());
   else if (strncmp("printLevels", com_instance, maxLen) == 0) printLevels = (com_pi == 0 ? !printLevels : com_params[0] != 0.0f);
   else if (strncmp("printTuner", com_instance, maxLen) == 0) printTuner = (com_pi == 0 ? !printTuner : com_params[0] != 0.0f);
+  //else if (strncmp("setInput", com_instance, maxLen) == 0 && com_pi >= 1) setInput(com_params[0]);
   else if (strncmp("setVolume", com_instance, maxLen) == 0 && com_pi >= 1) setVolume(com_params[0]);
-  else if (strncmp("tone", com_instance, maxLen) == 0) tone(com_params[0], com_params[1]);
+  else if (strncmp("tone", com_instance, maxLen) == 0 && com_pi >= 2) inputTone(com_params[0], com_params[1]);
+  else if (strncmp("outputTone", com_instance, maxLen) == 0 && com_pi >= 2) outputTone(com_params[0], com_params[1]);
   else if (strncmp("doTestTone", com_instance, maxLen) == 0 && com_pi >= 2) doTestTone(com_params[0], com_params[1], com_pi > 2 ? com_params[2] : 0.0f);
   else if (strncmp("debug", com_instance, maxLen) == 0) debug = (com_pi == 0 ? true : com_params[0] != 0.0f);
 

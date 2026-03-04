@@ -26,8 +26,7 @@ class AudioEffectPreamp_F32 :
 
     void begin()
     {
-      _f1.reset().setHighpass1p1z(50.0f).begin();
-      //_f2.reset().setLowShelf(1000.0f, -4.5f, 0.3f).setLowpass(13500.0f).begin();
+      _f1.reset().setHighpass1p1z(25.0f).begin();
       _f2.reset().setLowpass1p1z(17500.0f).begin();
     }
 

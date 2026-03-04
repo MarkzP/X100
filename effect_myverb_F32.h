@@ -22,7 +22,7 @@ public:
 
   void begin() {
     
-    pinMode(0, INPUT_PULLUP);
+    //pinMode(0, INPUT_PULLUP);
 
     _lfoL.freq(1.161f);
     _lfoR.freq(0.813f);
@@ -121,7 +121,8 @@ public:
 
     for (uint16_t i = 0; i < blockL->length; i++) {
 
-      float signal = (blockL->data[i] + blockR->data[i]) * (digitalReadFast(0) ? _input : 0.5f);
+
+      float signal = (blockL->data[i] + blockR->data[i]) * 0.5f;//(digitalReadFast(0) ? _input : 0.5f);
 
       float level = _d.detect(signal) * _sensitivity;
       level = level < 0.0f ? 0.0f : level > 1.0f ? 1.0f : level;

@@ -8,15 +8,15 @@
 #define PIN_BTN_0       3
 #define PIN_BTN_1       2
 #define PIN_BTN_2       1
-//#define PIN_BTN_3       0
+#define PIN_BTN_3       0
 //#define PIN_BTN_4       6
 
 #define PIN_POT_0      14
 #define PIN_POT_1      15
 #define PIN_POT_2      16
-#define PIN_POT_3      17
-#define PIN_POT_4      18
-#define PIN_POT_5      19
+//#define PIN_POT_3      17
+//#define PIN_POT_4      18
+//#define PIN_POT_5      19
 
 #define PIN_ENC_A      5
 #define PIN_ENC_B      4
@@ -56,7 +56,7 @@ const byte led_chars[] = {
 
 
 
-FLASHMEM void print(const char *s, int line = 0)
+void print(const char *s, int line = 0)
 {
   byte buf[] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
@@ -75,12 +75,12 @@ FLASHMEM void print(const char *s, int line = 0)
   digitalWriteFast(PIN_SPI_CS, HIGH);
 }
 
-FLASHMEM void clear()
+void clear()
 {
   print("        ");
 }
 
-FLASHMEM void displayTunerHW(float freq, int note, int semitone, float cents)
+void displayTunerHW(float freq, int note, int semitone, float cents)
 {
   char buf[] = "        ";
 
@@ -139,7 +139,7 @@ FLASHMEM void HW_Setup()
   clear();
 }
 
-FLASHMEM void HW_Loop()
+void HW_Loop()
 {
 }
 

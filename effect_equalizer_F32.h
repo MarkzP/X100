@@ -20,8 +20,7 @@ class AudioEffectEqualizer_F32 :
     AudioEffectEqualizer_F32(const AudioSettings_F32 &settings):
       AudioStream_F32(1, inputQueueArray),
       _f1(settings.sample_rate_Hz),
-      _f2(settings.sample_rate_Hz),
-      _f3(settings.sample_rate_Hz)
+      _f2(settings.sample_rate_Hz)
     {
     }
 
@@ -45,16 +44,15 @@ class AudioEffectEqualizer_F32 :
         case 7: _g7 = db; break;
       }
 
-      _f1.reset().setHighpass1p1z(50.0).begin();
-      _f2.reset().setPeak(100.0, _g1, 1.4).begin();
-      _f3.reset()
-        .setPeak(200.0, _g2, 1.4)
-        .setPeak(400.0, _g3, 1.4)
-        .setPeak(800.0, _g4, 1.4)
-        .setPeak(1600.0, _g5, 1.4)
-        .setPeak(3200.0, _g6, 1.4)
-        .setPeak(6400.0, _g7, 1.4)
-        .setLowpass(12800.0)
+      _f1.reset().setPeak(100.0, _g1, _sqrt2).begin();
+      _f2.reset()
+        .setPeak(200.0, _g2, _sqrt2)
+        .setPeak(400.0, _g3, _sqrt2)
+        .setPeak(800.0, _g4, _sqrt2)
+        .setPeak(1600.0, _g5, _sqrt2)
+        .setPeak(3200.0, _g6, _sqrt2)
+        .setHighShelf(6400.0, _g7, _sqrt2)
+        .setLowpass1p1z(15000.0)
         .begin();
     }
 
@@ -73,7 +71,6 @@ class AudioEffectEqualizer_F32 :
       {
         _f1.filterBlock(block);
         _f2.filterBlock(block);
-        _f3.filterBlock(block);
         BlockOperations::scale(block, _level);
       }
 
@@ -85,17 +82,18 @@ class AudioEffectEqualizer_F32 :
     audio_block_f32_t *inputQueueArray[1];
     bool _enable = false;
 
-    HQ1p1zBiquad _f1;
-    HQBiquad _f2;
-    CascadeBiquad<7> _f3;
+    HQBiquad _f1;
+    CascadeBiquad<7> _f2;
 
-    float _g1 = 0.0f;
-    float _g2 = 0.0f;
-    float _g3 = 0.0f;
-    float _g4 = 0.0f;
-    float _g5 = 0.0f;
-    float _g6 = 0.0f;
-    float _g7 = 0.0f;
+    static constexpr double _sqrt2 = 1.414213562373095;
+
+    double _g1 = 0.0;
+    double _g2 = 0.0;
+    double _g3 = 0.0;
+    double _g4 = 0.0;
+    double _g5 = 0.0;
+    double _g6 = 0.0;
+    double _g7 = 0.0;
     float _level = 1.0f;
 };
 

@@ -25,7 +25,7 @@ int com_decimal = 0;
 bool com_neg = false;
 bool com_escape = false;
 
-FLASHMEM void initSercom()
+void initSercom()
 {
   for (int i = 0; i <= maxLen; i++) com_instance[i] = 0;
   for (int i = 0; i <= maxLen; i++) com_function[i] = 0;
@@ -42,7 +42,7 @@ FLASHMEM void initSercom()
   com_state = COM_Init;
 }
 
-FLASHMEM void handleChar(char c)
+void handleChar(char c)
 {
   switch (com_state)
   {
@@ -150,6 +150,8 @@ FLASHMEM void dumpPreset(const char* fname)
 
 void handleSercom()
 {
-  if (Serial.available()) printLevels = false;
-  for (int i = 0; Serial.available() && i < 512; i++) handleChar((char)Serial.read());
+  if (!Serial.available()) return;
+  printLevels = false;
+  //for (int i = 0; Serial.available() && i < 512; i++) 
+    handleChar((char)Serial.read());
 }

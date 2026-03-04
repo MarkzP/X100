@@ -81,12 +81,15 @@ AudioConnection_F32          patchCord21(reverb, 0, sonic, 0);
 AudioConnection_F32          patchCord22(reverb, 1, sonic, 1);
 AudioConnection_F32          patchCord23(sonic, 0, cabsim, 0);
 AudioConnection_F32          patchCord24(sonic, 1, cabsim, 1);
-AudioConnection_F32          patchCord25(cabsim, 0, levelOutL, 0);
-AudioConnection_F32          patchCord26(cabsim, 0, mixerL, 0);
-AudioConnection_F32          patchCord27(cabsim, 1, levelOutR, 0);
-AudioConnection_F32          patchCord28(cabsim, 1, mixerR, 0);
+AudioConnection_F32          patchCord25(cabsim, 0, mixerL, 0);
+AudioConnection_F32          patchCord26(cabsim, 1, mixerR, 0);
+AudioConnection_F32          patchCord27(testTone, 0, mixerL, 2);
+AudioConnection_F32          patchCord28(testTone, 0, mixerR, 2);
 AudioConnection_F32          patchCord29(mixerR, 0, audioOut, 1);
 AudioConnection_F32          patchCord30(mixerL, 0, audioOut, 0);
+AudioConnection_F32          patchCord31(mixerR, 0, levelOutR, 0);
+AudioConnection_F32          patchCord32(mixerL, 0, levelOutL, 0);
+
 // GUItool: end automatically generated code
 
 
@@ -122,6 +125,7 @@ AudioConnection_F32      patchCordUSB_IR_32(fromUSBR, 0, mixerR, 1);
 #endif
 /**********************************************************************************************************************/
 
+
 const float delayMs = 1000.0f;
 const int delaySamples = LQDelay::bufferSizeMs(delayMs);
 DMAMEM int16_t delayLine[delaySamples];
@@ -129,6 +133,8 @@ DMAMEM int16_t delayLine[delaySamples];
 float peak = 0.0f;
 float levelInAvg = 0.0f;
 float lastLevelIn = 0.0f;
+float lastLevelOutL = 0.0f;
+float lastLevelOutR = 0.0f;
 elapsedMillis levelOutSince;
 unsigned long levelOutFor = 0;
 
@@ -147,18 +153,29 @@ inline float unitToDb(float u)
   return u < 5.011872E-07f ? -126.0f : 20.0f * log10f(u);
 }
 
-FLASHMEM void tone(float freq = 1000.0f, float amp = 0.0f)
+FLASHMEM void inputTone(float freq = 1000.0f, float amp = 0.0f)
 {
-  AudioNoInterrupts();
-  inputMixer.gain(2, 1.0f);
+  inputMixer.gain(2, 2.0f);
+  mixerL.gain(2, 0.0f);
+  mixerR.gain(2, 0.0f);
   testTone.frequency(freq);
   testTone.amplitude(amp);
-  AudioInterrupts();
+  testTone.begin();
+}
+
+FLASHMEM void outputTone(float freq = 1000.0f, float amp = 0.0f)
+{
+  inputMixer.gain(2, 0.0f);
+  mixerL.gain(2, 1.0f);
+  mixerR.gain(2, 1.0f);
+  testTone.frequency(freq);
+  testTone.amplitude(amp);
+  testTone.begin();
 }
 
 FLASHMEM void doTestTone(float freq = 1000.0f, float amp = 0.0f, float t = 0.0f)
 {
-  if (levelOutFor > 0) return;
+  //if (levelOutFor > 0) return;
 
   float cycleTime = 1.0f / freq;
   if (t < cycleTime) t = cycleTime;
@@ -170,16 +187,17 @@ FLASHMEM void doTestTone(float freq = 1000.0f, float amp = 0.0f, float t = 0.0f)
   levelOutL.read();
   levelOutR.read();
 
-  AudioNoInterrupts();
-  inputMixer.gain(2, 1.0f);
+  inputMixer.gain(2, 2.0f);
+  mixerL.gain(2, 0.0f);
+  mixerR.gain(2, 0.0f);
   testTone.frequency(freq);
   testTone.amplitude(amp);
+  testTone.begin();
   levelOutFor = (unsigned long)(t * 1000.0f) + 4;
   levelOutSince = 0;
-  AudioInterrupts();
 }
 
-FLASHMEM void readLevels()
+void readLevels()
 {
   if (tuner.available())
   {
@@ -219,15 +237,28 @@ FLASHMEM void readLevels()
     else peak *= 0.9f;
   }
   
-  if (levelOutFor > 0 && levelOutSince > levelOutFor && levelOutL.available() && levelOutR.available())
+  if (levelOutFor > 0)
   {
-    float l = levelOutL.read(); // levelOutL.readPeakToPeak() * 0.5f;
-    float r = levelOutR.read(); // levelOutR.readPeakToPeak() * 0.5f;
+    if (levelOutSince > levelOutFor && levelOutL.available() && levelOutR.available())
+    {
+      lastLevelOutL = levelOutL.read(); // levelOutL.readPeakToPeak() * 0.5f;
+      lastLevelOutR = levelOutR.read(); // levelOutR.readPeakToPeak() * 0.5f;
 
-    levelOutFor = 0;
-    testTone.amplitude(0.0f);
+      levelOutFor = 0;
 
-    Serial.printf("%.7f,%.7f\n", l, r);
+      Serial.printf("%.7f,%.7f\n", lastLevelOutL, lastLevelOutR);
+    }
+  }
+  else
+  {
+    if (levelOutL.available())
+    {
+      lastLevelOutL = levelOutL.read();
+    }
+    if (levelOutR.available())
+    {
+      lastLevelOutR = levelOutR.read();
+    }
   }
 
   if (printLevels && lastPrintLevels > 25)
@@ -235,14 +266,14 @@ FLASHMEM void readLevels()
     lastPrintLevels = 0;
     //Serial.printf("%.6f\t%.6f\n", unitToDb(levelInAvg), dynamics.effectiveGain());
     //Serial.printf("0\t10\t%.6f\n", chorus._mod1 * 10.0f);
-    Serial.printf("min:-0\tmax:1\ts:%.6f\tf:%.6f\tg:%.6f\n", envelope.surge(), envelope.level(), envelope.gate());
+    //Serial.printf("min:-0\tmax:1\ts:%.6f\tf:%.6f\tg:%.6f\n", envelope.surge(), envelope.level(), envelope.gate());
     //Serial.printf("min:-16\tmax:2\ts:%.6f\n", envelope.surge());
     //Serial.printf("%.6f\t%.6f\t%.6f\n", hdr.db_low(), hdr.db_high(), hdr.gain());
     //Serial.printf("%.6f\t%.6f\n", wah._control, wah._smooth);
   }
 }
 
-FLASHMEM void usbVolume()
+void usbVolume()
 {
 #ifdef AUDIO_INTERFACE
 #ifdef USB_OUTPUT
@@ -275,10 +306,6 @@ FLASHMEM void setup()
   cabsim.begin();
 
   tuner.begin(0.2f);
-
-  testTone.begin();
-  testTone.amplitude(0.0f);
-  testTone.frequency(1000.0f);
 
   SD.begin(BUILTIN_SDCARD);
 
