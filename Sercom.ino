@@ -151,7 +151,6 @@ FLASHMEM void dumpPreset(const char* fname)
 void handleSercom()
 {
   if (!Serial.available()) return;
-  printLevels = false;
-  //for (int i = 0; Serial.available() && i < 512; i++) 
-    handleChar((char)Serial.read());
+
+  handleChar((char)Serial.read());
 }

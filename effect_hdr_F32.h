@@ -22,99 +22,62 @@ class AudioEffectHDR_F32 :
     {
     }
 
-    void setOutput(int output)
-    {
-      _out = output;
-    }
-
-    void setGain(float gain)
-    {
-      _auto = false;
-      _gain = gain;
-    }
-
-    float db_low() { return _rd.db(); }
-    float db_high() { return _hd.db(); }
-    float lx() { return _lx; }
+    float db_low() { return FilterUtils::u2dB(_ld.level()); }
+    float db_high() { return FilterUtils::u2dB(_hd.level()); }
     float gain() { return _gain; }
 
     virtual void update(void)
     {
       audio_block_f32_t *blockL = AudioStream_F32::receiveWritable_f32(0);
-      if (!blockL) return;
-
       audio_block_f32_t *blockH = AudioStream_F32::receiveReadOnly_f32(1);
-      if (!blockH)
+      if (!blockL || !blockH)
       {
-        AudioStream_F32::release(blockL);
+        if (blockH) AudioStream_F32::release(blockH);
+        if (blockL) AudioStream_F32::release(blockL);
         return;
       }
 
-      float gain = _gain;
-
-      for (uint16_t i = 0; i < blockL->length; i++)
+      float *pl = blockL->data;
+      float *ph = blockH->data;
+      float *endl = pl + blockL->length;
+      do
       {
-        float rs = blockL->data[i];
-        float ls = rs * gain;
-        float hs = blockH->data[i];
+        float rs = *pl;
+        float hs = *ph;
+        float ls = rs * _gain;
 
-        float rx = 0.0f;
-        float lx = 0.0f;
-        float hx = 1.0f;
-
-        _rd.detect(rs);
         float low = _ld.detect(ls);
         float high = _hd.detect(hs);
-        float r = 0.0f;
 
-        if (high < _min)
+        if (high < _minLevel)
         {
-          lx = 0.0f;
+          // high below min - use high gain input only
+          *pl = hs;
         }
-        else if (high < _max)
+        else if (high < _maxLevel)
         {
-          lx = high * (1.0f / _max);
-          hx = 1.0f - lx;
-          r = (high / low) - 1.0f;
-          r = lx < 0.5f ? r * lx : r * hx;
-          r *= 0.00025f;
+          // high between min & max
+          float lx = (high - _minLevel) * (1.0f / (_maxLevel - _minLevel));
+          float hx = 1.0f - lx;
+          *pl = (hs * hx) + (ls * lx);
+
+          float gainError = (high / low) - 1.0f;
+          gainError = lx < 0.5f ? gainError * lx : gainError * hx;
+          gainError *= 0.00025f;
+          gainError = FilterUtils::denormFloat(gainError);
+          _gain += gainError;
+          _gain = _gain < _minGain ? _minGain : _gain > _maxGain ? _maxGain : _gain;
         }
         else
         {
-          lx = 1.0f;
-          hx = 0.0f;
+          // high above max - use low gain input only
+          *pl = ls;
         }
-
-        switch (_out)
-        {
-          case 1:
-            rx = 1.0f;
-            lx = 0.0f;
-            hx = 0.0f;          
-            break;
-          case 2:
-            rx = 0.0f;
-            lx = 0.0f;
-            hx = 1.0f;           
-            break;
-          case 3:
-            rx = 0.0f;
-            lx = 0.0f;
-            hx = 0.0f;
-        }
-
-        blockL->data[i] = (hs * hx) + (ls * lx) + (rs * rx);
-
-        if (_auto) 
-        {
-          gain += r;
-          gain = gain < _ming ? _ming : gain > _maxg ? _maxg : gain;
-        }        
         
-        _lx = lx;
+        pl++;
+        ph++;
       }
-
-      _gain = gain;
+      while (pl < endl);
 
       AudioStream_F32::transmit(blockL, 0);
       AudioStream_F32::release(blockL);
@@ -123,17 +86,13 @@ class AudioEffectHDR_F32 :
 
   private:
     audio_block_f32_t *inputQueueArray[2];
-    Detector _rd;
     Detector _ld;
     Detector _hd;
-    static constexpr float _min = 0.001f; // ~ -60.0db
-    static constexpr float _max = 0.5f;    // ~ -6.0db
-    bool _auto = true;
+    static constexpr float _minLevel = 0.001f; // ~ -60.0db
+    static constexpr float _maxLevel = 0.5f;    // ~ -6.0db
+    static constexpr float _maxGain = 6.0f;
+    static constexpr float _minGain = 3.0f;
     float _gain = 4.0f;
-    float _maxg = 6.0f;
-    float _ming = 3.0f;
-    float _lx = 0.0f;
-    int _out = 0;
 };
 
 #endif

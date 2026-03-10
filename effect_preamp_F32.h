@@ -26,8 +26,8 @@ class AudioEffectPreamp_F32 :
 
     void begin()
     {
-      _f1.reset().setHighpass1p1z(25.0f).begin();
-      _f2.reset().setLowpass1p1z(17500.0f).begin();
+      _f1.reset().setHighpass1p1z(25.0).begin();
+      _f2.reset().setLowpass1p1z(17500.0).begin();
     }
 
     void enable(bool enable = true)
@@ -61,7 +61,7 @@ class AudioEffectPreamp_F32 :
     bool _enable = true;
 
     HQ1p1zBiquad _f1;
-    CascadeBiquad<2> _f2;
+    HQ1p1zBiquad _f2;
 
     float _level = 1.0f;
 };

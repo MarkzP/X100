@@ -459,6 +459,7 @@ class Effect
 Effect *Effect::_currentEffect;
 
 #define EPARAMS(_n_) Parameter _efxp_ ## _n_[] =
-#define EFFECT(_n_) Effect _efx_ ## _n_(#_n_, sizeof(_efxp_ ## _n_) / sizeof(_efxp_ ## _n_[0]), _efxp_ ## _n_, [](Effect &e)-> FLASHMEM void 
+//#define EFFECT(_n_) Effect _efx_ ## _n_(#_n_, sizeof(_efxp_ ## _n_) / sizeof(_efxp_ ## _n_[0]), _efxp_ ## _n_, [](Effect &e)-> FLASHMEM void 
+#define EFFECT(_n_) Effect _efx_ ## _n_(#_n_, sizeof(_efxp_ ## _n_) / sizeof(_efxp_ ## _n_[0]), _efxp_ ## _n_, [](Effect &e)-> void 
 
 #endif

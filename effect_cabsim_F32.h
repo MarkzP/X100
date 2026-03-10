@@ -19,8 +19,12 @@ class AudioEffectCabSim_F32 :
 
     AudioEffectCabSim_F32(const AudioSettings_F32 &settings):
       AudioStream_F32(2, inputQueueArray),
-      _fpreL(settings.sample_rate_Hz),
-      _fpreR(settings.sample_rate_Hz),
+      _roomL(settings),
+      _roomR(settings),
+      _fpre1L(settings.sample_rate_Hz),
+      _fpre1R(settings.sample_rate_Hz),
+      _fpre2L(settings.sample_rate_Hz),
+      _fpre2R(settings.sample_rate_Hz),
       _frevL(settings.sample_rate_Hz),
       _frevR(settings.sample_rate_Hz),
       _fpostL(settings.sample_rate_Hz),
@@ -30,25 +34,26 @@ class AudioEffectCabSim_F32 :
 
     void begin()
     {
-      _fpreL.reset()
-      .setHighpass(280.0f)
-      .setPeak(1300.0f, -14.0f)
-      .setLowpass(3500.0f, 1.4f)
-      .setLowpass(14000.0f)
-      .begin();
+      _fpre1L.reset().setHighpass(280.0).begin();
+      _fpre1R.reset().setHighpass(280.0).begin();
 
-      _fpreR.reset()
-      .setHighpass(280.0f)
-      .setPeak(1300.0f, -14.0f)
-      .setLowpass(3500.0f, 1.4f)
-      .setLowpass(14000.0f)
-      .begin();
+      _fpre2L.reset()
+        .setPeak(1300.0, -14.0)
+        .setLowpass(3500.0, 1.4)
+        .setLowpass(14000.0)
+        .begin();
 
-      _frevL.reset().setHighpass1p1z(400.0f).begin();
-      _frevR.reset().setHighpass1p1z(400.0f).begin();
+      _fpre2R.reset()
+        .setPeak(1300.0, -14.0)
+        .setLowpass(3500.0, 1.4)
+        .setLowpass(14000.0)
+        .begin();
 
-      _fpostL.reset().setLowpass(10000.0f).setLowpass(10000.0f).begin();
-      _fpostR.reset().setLowpass(10000.0f).setLowpass(10000.0f).begin();
+      _frevL.reset().setHighpass1p1z(400.0).begin();
+      _frevR.reset().setHighpass1p1z(400.0).begin();
+
+      _fpostL.reset().setLowpass(10000.0).setLowpass(10000.0).begin();
+      _fpostR.reset().setLowpass(10000.0).setLowpass(10000.0).begin();
 
       size();
       direct();
@@ -81,14 +86,13 @@ class AudioEffectCabSim_F32 :
 
     virtual void update(void)
     {
-      audio_block_f32_t* blockL = AudioStream_F32::receiveWritable_f32(0);
-      audio_block_f32_t* blockR = AudioStream_F32::receiveWritable_f32(1);
-      audio_block_f32_t* roomL = AudioStream_F32::allocate_f32();
-      audio_block_f32_t* roomR = AudioStream_F32::allocate_f32();
-      if (!blockL || !blockR || !roomL || !roomR)
+      audio_block_f32_t *roomL = &_roomL;
+      audio_block_f32_t *roomR = &_roomR;
+
+      audio_block_f32_t *blockL = AudioStream_F32::receiveWritable_f32(0);
+      audio_block_f32_t *blockR = AudioStream_F32::receiveWritable_f32(1);
+      if (!blockL || !blockR)
       {
-        if (roomR) AudioStream_F32::release(roomR);
-        if (roomL) AudioStream_F32::release(roomL);
         if (blockR) AudioStream_F32::release(blockR);
         if (blockL) AudioStream_F32::release(blockL);
         return;
@@ -96,8 +100,10 @@ class AudioEffectCabSim_F32 :
 
       if (_enable)
       {
-        _fpreL.filterBlock(blockL);
-        _fpreR.filterBlock(blockR);
+        _fpre1L.filterBlock(blockL);
+        _fpre1R.filterBlock(blockR);
+        _fpre2L.filterBlock(blockL);
+        _fpre2R.filterBlock(blockR);
 
         _frevL.filterBlock(blockL, roomL);
         _frevR.filterBlock(blockR, roomR);
@@ -129,16 +135,18 @@ class AudioEffectCabSim_F32 :
       AudioStream_F32::transmit(blockL, 0);
       AudioStream_F32::transmit(blockR, 1);
 
-      AudioStream_F32::release(roomR);
-      AudioStream_F32::release(roomL);
       AudioStream_F32::release(blockR);
       AudioStream_F32::release(blockL);
     }
 
   private:
     audio_block_f32_t *inputQueueArray[2];
-    CascadeBiquad<4> _fpreL;
-    CascadeBiquad<4> _fpreR;
+    audio_block_f32_t _roomL;
+    audio_block_f32_t _roomR;
+    HQ1p1zBiquad _fpre1L;
+    HQ1p1zBiquad _fpre1R;
+    CascadeBiquad<3> _fpre2L;
+    CascadeBiquad<3> _fpre2R;
     CascadeBiquad<1> _frevL;
     CascadeBiquad<1> _frevR;
     CascadeBiquad<2> _fpostL;

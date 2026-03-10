@@ -7,20 +7,17 @@
 EPARAMS(preamp)
 {
   Parameter("level", Parameter::PT_Float, 0.5f),
-  Parameter("Output", Parameter::PT_Enum, 0.0f, 0.0f, 3.0f, 1.0f, (const char*[]){" hdr", " low", "high", "mute"}),
   Parameter("enable", Parameter::PT_Bool, true),
 };
 EFFECT(preamp)
 {
   int i = 0;
   Parameter& level = e[i++];
-  Parameter& output = e[i++];
   Parameter& enable = e[i++];
 
   bool enableChanged = enable.changed();
 
   if (enableChanged || level.changed()) preamp.level(level);
-  if (enableChanged || output.changed()) hdr.setOutput(output);
   if (enableChanged) preamp.enable(enable);
 });
 
@@ -31,7 +28,6 @@ EPARAMS(envelope)
   Parameter("close", Parameter::PT_Float, 0.5f),
   Parameter("attack", Parameter::PT_Float, 0.3f),
   Parameter("release", Parameter::PT_Float, 0.0f),
-  //Parameter("sensitivity", Parameter::PT_Float, 0.5f),
   Parameter("enable", Parameter::PT_Bool, false),
 };
 EFFECT(envelope)
@@ -41,7 +37,6 @@ EFFECT(envelope)
   Parameter& close = e[i++];
   Parameter& attack = e[i++];
   Parameter& release = e[i++];
-  //Parameter& sensitivity = e[i++];
   Parameter& enable = e[i++];
 
   bool enableChanged = enable.changed();
@@ -49,7 +44,6 @@ EFFECT(envelope)
   if (enableChanged || close.changed()) envelope.close(close);
   if (enableChanged || attack.changed()) envelope.attack(attack);
   if (enableChanged || release.changed()) envelope.release(release);
-  //if (enableChanged || sensitivity.changed()) envelope.sensitivity(sensitivity);
   if (enableChanged) envelope.enable(enable);
 });
 
@@ -174,7 +168,7 @@ EPARAMS(equalizer)
   Parameter("1_6k", Parameter::PT_Float, 0.0f, -15.0f, 15.0f),
   Parameter("3_2k", Parameter::PT_Float, 0.0f, -15.0f, 15.0f),
   Parameter("6_4k", Parameter::PT_Float, 0.0f, -15.0f, 15.0f),
-  Parameter("level", Parameter::PT_Float, 0.0f, -15.0f, 15.0f),
+  Parameter("level", Parameter::PT_Float, 0.0f, -9.0f, 9.0f),
   Parameter("enable", Parameter::PT_Bool, false),
 };
 EFFECT(equalizer)
@@ -342,7 +336,7 @@ EFFECT(tremolo)
 
 EPARAMS(chorus)
 {
-  Parameter("preset", Parameter::PT_Enum, 0.0f, 0.0f, 7.0f, 1.0f, (const char*[]){" def", " tsc", " ce2", " bf2", " dd1", " dd2", " dd3", " dd4"}),
+  Parameter("preset", Parameter::PT_Enum, 0.0f, 0.0f, 8.0f, 1.0f, (const char*[]){" def", " tsc", " ce2", " bf2", " dd1", " dd2", " dd3", " dd4", "test"}),
   Parameter("rate", Parameter::PT_Float, 0.5f),
   Parameter("depth", Parameter::PT_Float, 0.5f),
   Parameter("resonance", Parameter::PT_Float, 0.5f),
@@ -378,6 +372,7 @@ EFFECT(chorus)
       case 5: chorus.type(AudioEffectMultiChorus_F32::DD2); break;
       case 6: chorus.type(AudioEffectMultiChorus_F32::DD3); break;
       case 7: chorus.type(AudioEffectMultiChorus_F32::DD4); break;
+      case 8: chorus.type(AudioEffectMultiChorus_F32::Test); break;
     }
   }
   if (enableChanged || rate.changed()) chorus.rate(rate);
@@ -388,6 +383,7 @@ EFFECT(chorus)
   if (enableChanged || wet.changed()) chorus.wet(wet);
 });
 
+
 EPARAMS(reverb)
 {
   Parameter("input", Parameter::PT_Float, 1.0f),
@@ -397,8 +393,8 @@ EPARAMS(reverb)
   Parameter("decay", Parameter::PT_Float, 0.5f),
   Parameter("damp", Parameter::PT_Float, 0.2f),
   Parameter("sensitivity", Parameter::PT_Float, 0.0f),
-  Parameter("wet", Parameter::PT_Float, 0.2f),
   Parameter("dry", Parameter::PT_Float, 1.0f),
+  Parameter("wet", Parameter::PT_Float, 0.3f),
   Parameter("enable", Parameter::PT_Bool, false),
 };
 EFFECT(reverb)
@@ -411,8 +407,8 @@ EFFECT(reverb)
   Parameter& decay = e[i++];
   Parameter& damp = e[i++];
   Parameter& sensitivity = e[i++];
-  Parameter& wet = e[i++];
   Parameter& dry = e[i++];
+  Parameter& wet = e[i++];
   Parameter& enable = e[i++];
 
   bool enableChanged = enable.changed();
@@ -424,8 +420,8 @@ EFFECT(reverb)
   if (enableChanged || decay.changed()) reverb.decay(decay);
   if (enableChanged || damp.changed()) reverb.damping(damp);
   if (enableChanged || sensitivity.changed()) reverb.sensitivity(sensitivity);
-  if (enableChanged || wet.changed()) reverb.wet(wet);
   if (enableChanged || dry.changed()) reverb.dry(dry);
+  if (enableChanged || wet.changed()) reverb.wet(wet);
   if (enableChanged) reverb.enable(enable);
 });
 
@@ -443,9 +439,9 @@ EPARAMS(delay)
   Parameter("f_hi", Parameter::PT_Float, 0.0f),
   Parameter("rate", Parameter::PT_Float, 0.5f),
   Parameter("depth", Parameter::PT_Float, 0.5f),
-  Parameter("spread", Parameter::PT_Float, 0.5f),  
-  Parameter("wet", Parameter::PT_Float, 0.2f),
-  Parameter("dry", Parameter::PT_Float, 1.0f),
+  Parameter("spread", Parameter::PT_Float, 0.5f),
+  Parameter("dry", Parameter::PT_Float, 1.0f), 
+  Parameter("wet", Parameter::PT_Float, 0.3f),
   Parameter("enable", Parameter::PT_Bool, false),
 };
 EFFECT(delay)
@@ -463,8 +459,8 @@ EFFECT(delay)
   Parameter& rate = e[i++];
   Parameter& depth = e[i++];
   Parameter& spread = e[i++];
-  Parameter& wet = e[i++];
   Parameter& dry = e[i++];
+  Parameter& wet = e[i++];
   Parameter& enable = e[i++];
 
   bool enableChanged = enable.changed();
@@ -475,15 +471,18 @@ EFFECT(delay)
   if (enableChanged || rate.changed()) stereodelay.rate(rate);
   if (enableChanged || depth.changed()) stereodelay.depth(depth);
   if (enableChanged || spread.changed()) stereodelay.spread(spread);
+  if (enableChanged || dry.changed()) stereodelay.dry(dry);
   if (enableChanged || wet.changed()) stereodelay.wet(wet);
-  if (enableChanged || dry.changed()) stereodelay.dry(dry);    
   if (enableChanged) stereodelay.enable(enable);
 });
 
 
-EPARAMS(sonic)
+EPARAMS(cab_sim)
 {
-  Parameter("listen", Parameter::PT_Enum, 3.0f, 0.0f, 3.0f, 1.0f, (const char*[]){"low", "mid", "hi", "out"}),
+  Parameter("direct", Parameter::PT_Float, 1.0f),
+  Parameter("size", Parameter::PT_Float, 0.5f),
+  Parameter("room", Parameter::PT_Float, 0.5f),
+  Parameter("listen", Parameter::PT_Enum, 0.0f, 0.0f, 4.0f, 1.0f, (const char*[]){"out", "low", "mid", "hi", "byps"}),
   Parameter("low_mid", Parameter::PT_Float, 0.6f),
   Parameter("mid_high", Parameter::PT_Float, 0.4f),
   Parameter("l_comp", Parameter::PT_Float, 0.5f),
@@ -495,11 +494,14 @@ EPARAMS(sonic)
   Parameter("attack", Parameter::PT_Float, 0.5f),
   Parameter("release", Parameter::PT_Float, 0.5f),
   Parameter("width", Parameter::PT_Float, 0.5f),
-  Parameter("enable", Parameter::PT_Bool, false),
+  Parameter("enable", Parameter::PT_Bool, true),
 };
-EFFECT(sonic)
+EFFECT(cab_sim)
 {
   int i = 0;
+  Parameter& direct = e[i++];
+  Parameter& size = e[i++];
+  Parameter& room = e[i++];
   Parameter& listen = e[i++];
   Parameter& lowMid = e[i++];
   Parameter& midHigh = e[i++];
@@ -514,33 +516,27 @@ EFFECT(sonic)
   Parameter& width = e[i++];
   Parameter& enable = e[i++];
 
-  sonic.begin(enable ? (int)listen : 4, lowMid, midHigh, lComp, mComp, hComp, lOut, mOut, hOut, attack, release, width, false);
-});
-
-
-EPARAMS(cab_sim)
-{
-  Parameter("direct", Parameter::PT_Float, 1.0f),
-  Parameter("size", Parameter::PT_Float, 0.5f),
-  Parameter("room", Parameter::PT_Float, 0.5f),
-  Parameter("enable", Parameter::PT_Bool, true),
-};
-EFFECT(cab_sim)
-{
-  int i = 0;
-  Parameter& direct = e[i++];
-  Parameter& size = e[i++];
-  Parameter& room = e[i++];
-  Parameter& enable = e[i++];
-
   bool enableChanged = enable.changed();
 
   if (enableChanged || direct.changed()) cabsim.direct(direct);
   if (enableChanged || size.changed()) cabsim.size(size);
   if (enableChanged || room.changed()) cabsim.room(room);
   if (enableChanged) cabsim.enable(enable);
+  sonic.begin(enable ? (int)listen : 4, lowMid, midHigh, lComp, mComp, hComp, lOut, mOut, hOut, attack, release, width);
 });
 
+
+EPARAMS(volume)
+{
+  Parameter("volume", Parameter::PT_Float, 1.0f)
+};
+EFFECT(volume)
+{
+  int i = 0;
+  Parameter& volume = e[i++];
+
+  if (volume.changed()) setVolume(volume);
+});
 
 /**********************************************************************************************************************************/
 
@@ -604,30 +600,24 @@ void setState(short newState)
   {
     case r_select_preset:
     case r_select_preset_back:
-      clear();
       displayPresetName();
       break;
     case r_tuner:
     case r_tuner_back:
-      clear();
       print("Tuner");
       break;
     case r_select_effect:
     case r_select_effect_back:
-      clear();
       displayEffectName();
       break;
     case r_select_param:
     case r_select_param_back:
-      clear();
       displayParamName();
       break;
     case r_set_value:
-      clear();
       displayParamValue();
       break;
     case r_binding:
-      clear();
       print("binding.");
       _changeTimeout = 5000;
       break;
@@ -799,7 +789,7 @@ class IBindable
       }
     }
 
-    FLASHMEM bool bound() { return _effect != nullptr && _param != nullptr; }
+    bool bound() { return _effect != nullptr && _param != nullptr; }
 
     FLASHMEM float value() { return bound() ? _param->value() : 0.0f; }
 

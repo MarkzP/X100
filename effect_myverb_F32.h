@@ -7,31 +7,34 @@
 #include "components_F32.h"
 
 constexpr float src(int samples) { return (float)samples * AUDIO_SAMPLE_RATE_EXACT / 29761.0f; }
+constexpr float ratio = 0.7f;
 
-class AudioEffectMyVerb_F32 : public AudioStream_F32 {
+class AudioEffectMyVerb_F32 : public AudioStream_F32
+{
   //GUI: inputs:2, outputs:2  //this line used for automatic generation of GUI node
   //GUI: shortName:reverb
 public:
   AudioEffectMyVerb_F32(void)
-    : AudioStream_F32(2, inputQueueArray) {
+    : AudioStream_F32(2, inputQueueArray)
+  {
   }
 
   AudioEffectMyVerb_F32(const AudioSettings_F32& settings)
-    : AudioStream_F32(2, inputQueueArray) {
+    : AudioStream_F32(2, inputQueueArray)
+  {
   }
 
-  void begin() {
-    
-    //pinMode(0, INPUT_PULLUP);
-
+  void begin()
+  {
     _lfoL.freq(1.161f);
     _lfoR.freq(0.813f);
 
-    _node13_14.feedback(0.750f);
-    _node19_20.feedback(0.750f);
-    _node15_16.feedback(0.625f);
-    _node21_22.feedback(0.625f);
+    _node13_14.feedback(0.750f * ratio);
+    _node19_20.feedback(0.750f * ratio);
+    _node15_16.feedback(0.625f * ratio);
+    _node21_22.feedback(0.625f * ratio);
 
+    input();
     delay();
     bandwidth();
     density();
@@ -43,11 +46,13 @@ public:
     enable();
   }
 
-  void input(float input = 1.0f) {
+  void input(float input = 1.0f)
+  {
     _input = (input < 0.0f ? 0.0f : input > 1.0f ? 1.0f : input) * 0.5f;
   }
 
-  void density(float density1 = 0.7f) {
+  void density(float density1 = 0.7f)
+  {
     density1 = density1 < 0.0f ? 0.0f : density1 > 1.0f ? 1.0f : density1;
     density1 = density1 * 0.7995f + 0.005f;
 
@@ -55,13 +60,15 @@ public:
     _node46_48.feedback(-density1);
   }
 
-  void delay(float delay = 0.5f) {
+  void delay(float delay = 0.5f)
+  {
     delay = delay < 0.0f ? 0.0f : delay > 1.0f ? 1.0f : delay;
     
     _predelay.time(_predelay.maxTime() * delay);
   }
 
-  void decay(float decay = 0.3f) {
+  void decay(float decay = 0.3f)
+  {
     decay = decay < 0.0f ? 0.0f : decay > 1.0f ? 1.0f : decay;
 
     float density2 = decay + 0.15f;
@@ -72,14 +79,16 @@ public:
     _node55_59.feedback(density2);
   }
 
-  void bandwidth(float bandwidth = 0.8f) {
+  void bandwidth(float bandwidth = 0.8f)
+  {
     bandwidth = bandwidth < 0.0f ? 0.0f : bandwidth > 1.0f ? 1.0f : bandwidth;
     bandwidth = bandwidth * 0.994f + 0.005f;
     
     _bandwidth.coefficient(bandwidth);
   }
 
-  void damping(float damping = 0.3f) {
+  void damping(float damping = 0.3f)
+  {
     damping = damping < 0.0f ? 0.0f : damping > 1.0f ? 1.0f : damping;
     damping = (1.0f - damping) * 0.994f + 0.005f;
     
@@ -93,36 +102,44 @@ public:
     _sensitivity = sensitivity * 50.0f;
   }
 
-  void wet(float wet = 0.2f) {
+  void wet(float wet = 0.2f)
+  {
     _wet = (wet < -1.0f ? -1.0f : wet > 1.0f ? 1.0f : wet) * 0.6f;
   }
 
-  void dry(float dry = 1.0f) {
+  void dry(float dry = 1.0f)
+  {
     _dry = dry < 0.0f ? 0.0f : dry > 1.0f ? 1.0f : dry;
   }
 
-  void enable(bool enable = false) {
+  void enable(bool enable = false)
+  {
     _enable = enable;
   }
 
-  virtual void update(void) {
+  virtual void update(void)
+  {
 
-    audio_block_f32_t* blockL = AudioStream_F32::receiveWritable_f32(0);
-    audio_block_f32_t* blockR = AudioStream_F32::receiveWritable_f32(1);
+    audio_block_f32_t *blockL = AudioStream_F32::receiveWritable_f32(0);
+    audio_block_f32_t *blockR = AudioStream_F32::receiveWritable_f32(1);
 
-    if (!blockL || !blockR) {
+    if (!blockL || !blockR)
+    {
       if (blockR) AudioStream_F32::release(blockR);
       if (blockL) AudioStream_F32::release(blockL);
       return;
     }
 
-    float tankL = _tankL;
-    float tankR = _tankR;
+    float *pl = blockL->data;
+    float *pr = blockR->data;
+    float *endl = pl + blockL->length;
+    do
+    {
+      float dryL = *pl;
+      float dryR = *pr;
 
-    for (uint16_t i = 0; i < blockL->length; i++) {
-
-
-      float signal = (blockL->data[i] + blockR->data[i]) * 0.5f;//(digitalReadFast(0) ? _input : 0.5f);
+      float signal = (dryL + dryR) * _input;
+      signal = _predelay.delay(signal);
 
       float level = _d.detect(signal) * _sensitivity;
       level = level < 0.0f ? 0.0f : level > 1.0f ? 1.0f : level;
@@ -130,59 +147,59 @@ public:
       float decay = _decay * (1.0f - _fin);
 
       signal = _bandwidth.filter(signal);
-      signal = _predelay.delay(signal);
 
       signal = _node13_14.allpass(signal);
       signal = _node19_20.allpass(signal);
       signal = _node15_16.allpass(signal);
       signal = _node21_22.allpass(signal);
 
-      float modL = _lfoL.next() * _excursionL;
-      tankL *= decay;
-      tankL = _node23_24.allpass(signal + tankR, modL);
-      tankL = _node24_30.delay(tankL);
-      tankL = _node30.filter(tankL);
-      tankL *= decay;
-      tankL = _node31_33.allpass(tankL);
-      tankL = _node33_39.delay(tankL);
+      float modL = (_lfoL.next() * _excursionL);
+      _tankL *= decay;
+      _tankL = _node23_24.allpass(signal + _tankR, _node23_24_s + modL);
+      _tankL = _node24_30.delay(_tankL);
+      _tankL = _node30.filter(_tankL);
+      _tankL *= decay;
+      _tankL = _node31_33.allpass(_tankL);
+      _tankL = _node33_39.delay(_tankL);
 
-      float modR = _lfoR.next() * _excursionR;
-      tankR *= decay;
-      tankR = _node46_48.allpass(signal + tankL, modR);
-      tankR = _node48_54.delay(tankR);
-      tankR = _node54.filter(tankR);
-      tankR *= decay;
-      tankR = _node55_59.allpass(tankR);
-      tankR = _node59_63.delay(tankR);
+      float modR = (_lfoR.next() * _excursionR);
+      _tankR *= decay;
+      _tankR = _node46_48.allpass(signal + _tankL, _node46_48_s + modR);
+      _tankR = _node48_54.delay(_tankR);
+      _tankR = _node54.filter(_tankR);
+      _tankR *= decay;
+      _tankR = _node55_59.allpass(_tankR);
+      _tankR = _node59_63.delay(_tankR);
 
-      if (_enable) {
-
+      if (_enable)
+      {
         float yL = ((_tap1l * _node48_54.readSample(_yl_t1))
-                  + (_tap2l * _node48_54.readSample(_yl_t2))
-                  - (_tap3l * _node55_59.readSample(_yl_t3))
-                  + (_tap4l * _node59_63.readSample(_yl_t4))
-                  - (_tap5l * _node24_30.readSample(_yl_t5))
-                  - (_tap6l * _node31_33.readSample(_yl_t6))
-                  - (_tap7l * _node33_39.readSample(_yl_t7)));
+                 + (_tap2l * _node48_54.readSample(_yl_t2))
+                 - (_tap3l * _node55_59.readSample(_yl_t3))
+                 + (_tap4l * _node59_63.readSample(_yl_t4))
+                 - (_tap5l * _node24_30.readSample(_yl_t5))
+                 - (_tap6l * _node31_33.readSample(_yl_t6))
+                 - (_tap7l * _node33_39.readSample(_yl_t7)));
 
         float yR = ((_tap1r * _node24_30.readSample(_yr_t1))
-                  + (_tap2r * _node24_30.readSample(_yr_t2))
-                  - (_tap3r * _node31_33.readSample(_yr_t3))
-                  + (_tap4r * _node33_39.readSample(_yr_t4))
-                  - (_tap5r * _node48_54.readSample(_yr_t5))
-                  - (_tap6r * _node55_59.readSample(_yr_t6))
-                  - (_tap7r * _node59_63.readSample(_yr_t7)));                  
+                 + (_tap2r * _node24_30.readSample(_yr_t2))
+                 - (_tap3r * _node31_33.readSample(_yr_t3))
+                 + (_tap4r * _node33_39.readSample(_yr_t4))
+                 - (_tap5r * _node48_54.readSample(_yr_t5))
+                 - (_tap6r * _node55_59.readSample(_yr_t6))
+                 - (_tap7r * _node59_63.readSample(_yr_t7)));
 
-        blockL->data[i] *= _dry;
-        blockR->data[i] *= _dry;
-
-        blockL->data[i] += yL * _wet;
-        blockR->data[i] += yR * _wet;
+        *pl = (dryL * _dry) + (yL * _wet);
+        *pr = (dryR * _dry) + (yR * _wet);
       }
+     
+      pl++;
+      pr++;
     }
+    while (pl < endl);
 
-    _tankL = tankL;
-    _tankR = tankR;
+    _tankL = FilterUtils::denormFloat(_tankL);
+    _tankR = FilterUtils::denormFloat(_tankR);
 
     AudioStream_F32::transmit(blockL, 0);
     AudioStream_F32::transmit(blockR, 1);
@@ -191,18 +208,17 @@ public:
   }
 
 private:
-
   static constexpr float _node13_14_s = src(142);
   static constexpr float _node19_20_s = src(107);
   static constexpr float _node15_16_s = src(379);
   static constexpr float _node21_22_s = src(277);
 
-  static constexpr float _excursionL = src(17);
+  static constexpr float _excursionL = src(15);
   static constexpr float _node23_24_s = src(672);
   static constexpr float _node24_30_s = src(4453);
   static constexpr float _node31_33_s = src(1800);
   static constexpr float _node33_39_s = src(3720);
-  static constexpr float _excursionR = src(11);
+  static constexpr float _excursionR = src(13);
   static constexpr float _node46_48_s = src(908);
   static constexpr float _node48_54_s = src(4217);
   static constexpr float _node55_59_s = src(2656);
@@ -223,10 +239,10 @@ private:
   static constexpr float _yr_t6_m = src(335);
   static constexpr float _yr_t7_m = src(121);
 
-  audio_block_f32_t* inputQueueArray[2];
+  audio_block_f32_t *inputQueueArray[2];
 
-  TriangleLfo _lfoL;
-  TriangleLfo _lfoR;
+  SineLfo _lfoL;
+  SineLfo _lfoR;
 
   LPFirstOrder _bandwidth;
 
@@ -237,13 +253,13 @@ private:
   DelayFilter< (uint16_t)_node15_16_s >       _node15_16;
   DelayFilter< (uint16_t)_node21_22_s >       _node21_22;
 
-  StaticDelay< (uint16_t)(_node23_24_s + (_excursionL * 2)) >  _node23_24;
+  StaticDelay< (uint16_t)(_node23_24_s + _excursionL + 1) >  _node23_24;
   DelayFilter< (uint16_t)_node24_30_s >      _node24_30;
   LPFirstOrder _node30;
   DelayFilter< (uint16_t)_node31_33_s >      _node31_33;
   DelayFilter< (uint16_t)_node33_39_s >      _node33_39;
   
-  StaticDelay< (uint16_t)(_node46_48_s + (_excursionR * 2)) >  _node46_48;
+  StaticDelay< (uint16_t)(_node46_48_s + _excursionR + 1) >  _node46_48;
   DelayFilter< (uint16_t)_node48_54_s >      _node48_54;
   LPFirstOrder _node54;
   DelayFilter< (uint16_t)_node55_59_s >      _node55_59;

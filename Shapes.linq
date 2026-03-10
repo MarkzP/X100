@@ -11,7 +11,8 @@ void Main()
 		//.AddYSeries(x => saturation(x), LINQPad.Util.SeriesType.Spline)
 		//.AddYSeries(x => cubic(x), LINQPad.Util.SeriesType.Spline)
 		//.AddYSeries(x => fifth(x), LINQPad.Util.SeriesType.Spline)
-		.AddYSeries(x => nonlinear(x, 1.0f, 1.0f), LINQPad.Util.SeriesType.Spline)
+		//.AddYSeries(x => nonlinear(x, 0.0f, 1.0f), LINQPad.Util.SeriesType.Spline)
+		.AddYSeries(x => delayDrive(x, 0.05f), LINQPad.Util.SeriesType.Spline)
 		.ToWindowsChart();
 		
 	var area = chart.ChartAreas.First();
@@ -30,7 +31,7 @@ void Main()
 	chart.Dump();
 }
 
-float gain = 10.0f;
+float gain = 1.0f;
 
 float clip(float x) => x < -1.0f ? -1.0f : x > 1.0f ? 1.0f: x;
 float powf(float x, float n) => (float)Math.Pow(x, n);
@@ -84,18 +85,18 @@ float nonlinear(float sample, float color, float s)
 
         if (sample > 0.0f)
         {
-          //sample *= pcomp;
-          //sample = pcurvep1 * sample / (1.0f + (pcurve * sample));
+          sample *= pcomp;
+          sample = pcurvep1 * sample / (1.0f + (pcurve * sample));
         }
         else
         {
-          //sample *= ncomp;
-          //sample = ncurvep1 * sample / (1.0f - (ncurve * sample));
+          sample *= ncomp;
+          sample = ncurvep1 * sample / (1.0f - (ncurve * sample));
         }
 
         sample *= _twoThirds;
-        //sample = clip(sample);
-        //sample = (sample - (cube(sample) * _oneThird)) * _threeHalfs;
+        sample = clip(sample);
+        sample = (sample - (cube(sample) * _oneThird)) * _threeHalfs;
 
         sample *= (fabsf(sample) + skew) / (square(sample) + skewm1 * fabsf(sample) + 1.0f);
 	
@@ -177,6 +178,27 @@ float overdrive(float sample, float curve)
 	sample *= gain;
 	
 	sample = sample > 0.0f ? (float)Math.Sqrt(sample) : -(float)Math.Sqrt(-sample);
+	
+	return sample;
+}
+
+float delayDrive(float sample, float drive)
+{
+    drive = drive < 0.0f ? 0.0f : drive > 1.0f ? 1.0f : drive;
+    drive = (powf(drive, 2.0f) * 10.0f) + 0.5f;
+	float attn = 0.5f / drive;
+
+	sample = (sample + sample) * drive;
+    sample = sample < -1.0f ? -1.0f : sample > 1.0f ? 1.0f : sample;
+    double s1 = (double)sample;
+	double s2 = s1 * s1;
+	double s3 = s2 * s1;
+	double s5 = s2 * s3;
+    
+    //sample = (sample - ((float)s3 * (1.0f / 3.0f))) * (3.0f / 2.0f);
+	sample = (sample - ((float)s5 * (1.0f / 5.0f))) * (5.0f / 4.0f);
+	
+    sample *= attn;
 	
 	return sample;
 }

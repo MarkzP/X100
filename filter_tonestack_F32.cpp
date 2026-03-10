@@ -110,9 +110,7 @@ AudioFilterToneStack_F32 :: AudioFilterToneStack_F32(const AudioSettings_F32 &se
 
 void AudioFilterToneStack_F32::update()
 {
-#if defined(__ARM_ARCH_7EM__)
-
-	audio_block_f32_t* block = AudioStream_F32::receiveWritable_f32(0);
+	audio_block_f32_t *block = AudioStream_F32::receiveWritable_f32(0);
 
   if (!block) return;
   
@@ -124,5 +122,4 @@ void AudioFilterToneStack_F32::update()
 
   AudioStream_F32::transmit(block, 0);
   AudioStream_F32::release(block);
-#endif
 }

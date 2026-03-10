@@ -28,6 +28,7 @@ class AudioEffectTremolo_F32 :
     {
       if (depth <= 0.0f)
       {
+        _enable = false;
         _depth = 0.0f;
         _offset = 1.0f;
         _smm = 1.0f;
@@ -36,6 +37,7 @@ class AudioEffectTremolo_F32 :
       {
         _depth = (depth > 1.0f ? 1.0f : powf(depth, 4.0f)) + 0.2f;
         _offset = 1.0f - _depth;
+        _enable = true;
       }
     }
 
@@ -51,21 +53,21 @@ class AudioEffectTremolo_F32 :
 
       if (!block) return;
 
-      if (_depth > 0.0f)
+      if (_enable)
       {
-        float smooth = _smooth;
-        float smm = _smm;
-        float depth = _depth;
-        float offset = _offset;
-        for (uint16_t i = 0; i < block->length; i++)
+        float *p = block->data;
+        float *end = p + block->length;
+        do
         {
-          float mod = (_lfo.next() * depth) + offset;
+          float mod = (_lfo.next() * _depth) + _offset;
           mod = mod < 0.0f ? 0.0f : mod > 1.0f ? 1.0f : mod;
-          smm += (mod - smm) * smooth;
-          block->data[i] *= smm;
+          _smm += (mod - _smm) * _smooth;
+          *p++ *= _smm;
         }
-        _smm = smm;
+        while (p < end);
       }
+
+      _smm = FilterUtils::denormFloat(_smm);
 
       AudioStream_F32::transmit(block, 0);
       AudioStream_F32::release(block);
@@ -79,6 +81,7 @@ class AudioEffectTremolo_F32 :
     float _smm = 0.0f;
     float _depth = 0.0f;
     float _offset = 0.0f;
+    bool _enable = false;
 };
 
 #endif

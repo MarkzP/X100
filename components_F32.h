@@ -3,31 +3,55 @@
 
 #include "OpenAudio_ArduinoLibrary.h"
 #include "AudioStream_F32.h"
+#include "sinTable512_f32.h"
 #include "arm_math.h"
 #include "smalloc.h"
 
 class BlockOperations
 {
   public:
-    static void copy(audio_block_f32_t* pSrc, audio_block_f32_t* pDst)
+    static void copy(audio_block_f32_t *pSrc, audio_block_f32_t *pDst)
     {
       if (pSrc == pDst) return;
       arm_copy_f32(pSrc->data, pDst->data, pSrc->length);
     }
 
-    static void add(audio_block_f32_t* pSrcA, audio_block_f32_t* pSrcB, audio_block_f32_t* pDst = nullptr)
+    static void add(audio_block_f32_t *pSrcA, audio_block_f32_t *pSrcB, audio_block_f32_t *pDst = nullptr)
     {
       if (pDst == nullptr) pDst = pSrcB;
       arm_add_f32(pSrcA->data, pSrcB->data, pDst->data, pDst->length);
     }
 
-    static void scale(audio_block_f32_t* pSrc, float scale, audio_block_f32_t* pDst = nullptr)
+    static void scale(audio_block_f32_t *pSrc, float scale, audio_block_f32_t *pDst = nullptr)
     {
       if (pDst == nullptr) pDst = pSrc;
       arm_scale_f32(pSrc->data, scale, pDst->data, pSrc->length);
     }
 };
 
+
+class FilterUtils
+{
+  public:
+    static inline float denormFloat(float f)
+    {
+      return fabsf(f) < _minf ? 0.0f : f;
+    }
+
+    static inline double denormDouble(double f)
+    {
+      return abs(f) < _mind ? 0.0 : f;
+    }
+
+    static inline float u2dB(float u)
+    {
+      return u < 5.011872E-07f ? -126.0f : 20.0f * log10f(u);
+    }
+
+  private:
+    static constexpr double _mind = 1.0e-18;
+    static constexpr float _minf = 1.0e-18f;
+};
 
 class BiquadBase
 {
@@ -44,8 +68,7 @@ class BiquadBase
     {
       if (frequency <= 0.0f) return false;
 
-      double w0 = calc_w0(frequency);
-      double k = tan(w0 * 0.5);
+      double k = calc_k(frequency);
       double norm = 1.0 / (1.0 / k + 1.0);
       double b0 = norm;
       double b1 = norm;
@@ -60,8 +83,7 @@ class BiquadBase
     {
       if (frequency <= 0.0f) return false;
 
-      double w0 = calc_w0(frequency);
-      double k = tan(w0 * 0.5);
+      double k = calc_k(frequency);
       double norm = 1.0 / (k + 1.0);
       double b0 = norm;
       double b1 = -norm;
@@ -146,42 +168,100 @@ class BiquadBase
 
     bool lowShelf(double frequency, double gain, double slope = _invsqrt2)
     {
-      if (frequency <= 0.0f || gain == 0.0f || slope <= 0.0f) return false;
+      if (frequency <= 0.0f) return false;
 
-      double a = calc_a(gain);
-      double w0 = calc_w0(frequency);
-      double sinW0 = sin(w0);
-      double cosW0 = cos(w0);
-      double sinsq = sinW0 * sqrt((pow(a, 2.0) + 1.0) * (1.0 / slope - 1.0) + 2.0 * a);
-      double aMinus = (a - 1.0) * cosW0;
-      double aPlus = (a + 1.0) * cosW0;
-      double inv_a0 = 1.0 / ((a + 1.0) + aMinus + sinsq);
-      double b0 = a * ((a + 1.0) - aMinus + sinsq) * inv_a0;
-      double b1 = 2.0 * a * ((a - 1.0) - aPlus) * inv_a0;
-      double b2 = a * ((a + 1.0) - aMinus - sinsq) * inv_a0;
-      double a1 = 2.0 * ((a - 1.0) + aPlus) * inv_a0;
-      double a2 = -((a + 1.0) + aMinus - sinsq) * inv_a0;
+      double b0, b1, b2, a1, a2;
+
+      if (slope <= 0.0)
+      {
+        double v = calc_v(gain);
+        double k = calc_k(frequency);
+        if (gain >= 0.0)
+        {
+          double norm = 1.0 / (k + 1.0);
+          b0 = (k * v + 1.0) * norm;
+          b1 = (k * v - 1.0) * norm;
+          b2 = 0.0;
+          a1 = -(k - 1.0) * norm;
+          a2 = 0.0;
+        }
+        else
+        {	
+          double norm = 1.0 / (k * v + 1.0);
+          b0 = (k + 1.0) * norm;
+          b1 = (k - 1.0) * norm;
+          b2 = 0.0;
+          a1 = -(k * v - 1.0) * norm;
+          a2 = 0.0;
+        }
+      }
+      else
+      {
+        double a = calc_a(gain);
+        double w0 = calc_w0(frequency);
+        double sinW0 = sin(w0);
+        double cosW0 = cos(w0);
+        double sinsq = sinW0 * sqrt((pow(a, 2.0) + 1.0) * (1.0 / slope - 1.0) + 2.0 * a);
+        double aMinus = (a - 1.0) * cosW0;
+        double aPlus = (a + 1.0) * cosW0;
+        double inv_a0 = 1.0 / ((a + 1.0) + aMinus + sinsq);
+
+        b0 = a * ((a + 1.0) - aMinus + sinsq) * inv_a0;
+        b1 = 2.0 * a * ((a - 1.0) - aPlus) * inv_a0;
+        b2 = a * ((a + 1.0) - aMinus - sinsq) * inv_a0;
+        a1 = 2.0 * ((a - 1.0) + aPlus) * inv_a0;
+        a2 = -((a + 1.0) + aMinus - sinsq) * inv_a0;
+      }
 
       return coefficients(b0, b1, b2, a1, a2);
     }
 
     bool highShelf(double frequency, double gain, double slope = _invsqrt2)
     {
-      if (frequency <= 0.0f || gain == 0.0f || slope <= 0.0f) return false;
+      if (frequency <= 0.0f) return false;
 
-      double a = calc_a(gain);
-      double w0 = calc_w0(frequency);
-      double sinW0 = sin(w0);
-      double cosW0 = cos(w0);
-      double sinsq = sinW0 * sqrt((pow(a, 2.0) + 1.0) * (1.0 / slope - 1.0) + 2.0 * a);
-      double aMinus = (a - 1.0) * cosW0;
-      double aPlus = (a + 1.0) * cosW0;
-      double inv_a0 = 1.0 / ((a + 1.0) - aMinus + sinsq);
-      double b0 = a * ((a + 1.0) + aMinus + sinsq) * inv_a0;
-      double b1 = -2.0 * a * ((a - 1.0) + aPlus) * inv_a0;
-      double b2 = a * ((a + 1.0) + aMinus - sinsq) * inv_a0;
-      double a1 = -2.0 * ((a - 1.0) - aPlus) * inv_a0;
-      double a2 = -((a + 1.0) - aMinus - sinsq) * inv_a0;
+      double b0, b1, b2, a1, a2;
+
+      if (slope <= 0.0)
+      {
+        double v = calc_v(gain);
+        double k = calc_k(frequency);
+        if (gain >= 0.0)
+        {
+          double norm = 1.0 / (k + 1.0);
+          b0 = (k + v) * norm;
+          b1 = (k - v) * norm;
+          b2 = 0.0;
+          a1 = -(k - 1.0) * norm;
+          a2 = 0.0;
+        }
+        else
+        {	
+          double norm = 1.0 / (k + v);
+          b0 = (k + 1.0) * norm;
+          b1 = (k - 1.0) * norm;
+          b2 = 0.0;
+          a1 = -(k - v) * norm;
+          a2 = 0.0;
+        }
+      }
+      else
+      {
+        double w0 = calc_w0(frequency);
+        double a = calc_a(gain);
+        double sinW0 = sin(w0);
+        double cosW0 = cos(w0);
+        double sinsq = sinW0 * sqrt((pow(a, 2.0) + 1.0) * (1.0 / slope - 1.0) + 2.0 * a);
+        double aMinus = (a - 1.0) * cosW0;
+        double aPlus = (a + 1.0) * cosW0;
+        double inv_a0 = 1.0 / ((a + 1.0) - aMinus + sinsq);
+
+        b0 = a * ((a + 1.0) + aMinus + sinsq) * inv_a0;
+        b1 = -2.0 * a * ((a - 1.0) + aPlus) * inv_a0;
+        b2 = a * ((a + 1.0) + aMinus - sinsq) * inv_a0;
+        a1 = -2.0 * ((a - 1.0) - aPlus) * inv_a0;
+        a2 = -((a + 1.0) - aMinus - sinsq) * inv_a0;
+      }
 
       return coefficients(b0, b1, b2, a1, a2);
     }
@@ -209,9 +289,20 @@ class BiquadBase
     {
       return freq * 2.0 * PI / _sample_rate_Hz;
     }
+
+    double calc_k(double freq)
+    {
+      return tan(freq * PI / _sample_rate_Hz);
+    }
+
     double calc_a(double gain)
     {
       return pow(10.0, gain / 40.0);
+    }
+
+    double calc_v(double gain)
+    {
+      return pow(10.0, abs(gain) / 20.0);
     }
 };
 
@@ -235,8 +326,8 @@ class CascadeBiquad: public BiquadBase
 
     void begin()
     {
-      if (_stages > 0) arm_biquad_cascade_df1_init_f32(&_iir, _stages, _coeffs, _states);
       _active = _stages > 0;
+      if (_active) arm_biquad_cascade_df1_init_f32(&_iir, _stages, _coeffs, _states);
     }
 
 
@@ -294,7 +385,17 @@ class CascadeBiquad: public BiquadBase
       return *this;
     }
 
-    void filterArray(float* pSrc, float* pDst, uint32_t len)
+    float filter(float sample)
+    {
+      if (!_active) return sample;
+
+      arm_biquad_cascade_df1_f32(&_iir, &sample, &sample, 1);
+      denormStates();
+
+      return sample;
+    }
+
+    inline void filterArray(float *pSrc, float *pDst, uint32_t len)
     {
       if (!pSrc || !pDst || len == 0) return;
 
@@ -305,9 +406,10 @@ class CascadeBiquad: public BiquadBase
       }
 
       arm_biquad_cascade_df1_f32(&_iir, pSrc, pDst, len);
+      denormStates();
     }
 
-    void filterBlock(audio_block_f32_t* pSrc, audio_block_f32_t* pDst = nullptr)
+    void filterBlock(audio_block_f32_t *pSrc, audio_block_f32_t *pDst = nullptr)
     {
       if (!pSrc) return;
 
@@ -316,20 +418,17 @@ class CascadeBiquad: public BiquadBase
       filterArray(pSrc->data, pDst->data, pSrc->length);
     }
 
-    inline float filter(float sample)
-    {
-      if (!_active) return sample;
-
-      arm_biquad_cascade_df1_f32(&_iir, &sample, &sample, 1);
-
-      return sample;
-    }
-
     virtual bool coefficients(double b0, double b1, double b2, double a1, double a2)
     {
       if (_stages == N) return false;
 
       int c_offset = _stages++ * _coeffs_per_stages;
+
+      b0 = FilterUtils::denormDouble(b0);
+      b1 = FilterUtils::denormDouble(b1);
+      b2 = FilterUtils::denormDouble(b2);
+      a1 = FilterUtils::denormDouble(a1);
+      a2 = FilterUtils::denormDouble(a2);
       
       __disable_irq();
       _coeffs[c_offset + 0] = b0;
@@ -350,6 +449,16 @@ class CascadeBiquad: public BiquadBase
     float _states[_states_per_stages * N];
     float _coeffs[_coeffs_per_stages * N];
     arm_biquad_casd_df1_inst_f32 _iir;
+
+    inline void denormStates()
+    {
+      if (!_active) return;
+      int stateCount = _states_per_stages * _stages;
+      for (int i = 0; i < stateCount; i++)
+      {
+        _states[i] = FilterUtils::denormFloat(_states[i]);
+      }
+    }
 };
 
 
@@ -414,7 +523,7 @@ class HQBiquad: public BiquadBase
       return *this;
     }
 
-    inline float filter(float x)
+    float filter(float x)
     {
       double y = (_b0 * x) + (_b1 * _xn1) + (_b2 * _xn2) + (_a1 * _yn1) + (_a2 * _yn2);
       _xn2 = _xn1;
@@ -422,17 +531,31 @@ class HQBiquad: public BiquadBase
       _yn2 = _yn1;
       _yn1 = y;
 
+      _yn1 = FilterUtils::denormDouble(_yn1);
+
       return (float)y;
     }
 
-    void filterArray(float* pSrc, float* pDst, uint32_t len)
+    void filterArray(float *pSrc, float *pDst, uint32_t len)
     {
       if (!pSrc || !pDst || len == 0) return;
 
-      for (uint32_t i = 0; i < len; i++) pDst[i] = filter(pSrc[i]);
+      float *pSrcEnd = pSrc + len;
+      do
+      {
+        double x = *pSrc++;
+        double y = *pDst++ = (_b0 * x) + (_b1 * _xn1) + (_b2 * _xn2) + (_a1 * _yn1) + (_a2 * _yn2);
+        _xn2 = _xn1;
+        _xn1 = x;
+        _yn2 = _yn1;
+        _yn1 = y;
+      }
+      while (pSrc < pSrcEnd);
+
+      _yn1 = FilterUtils::denormDouble(_yn1);
     }
 
-    void filterBlock(audio_block_f32_t* pSrc, audio_block_f32_t* pDst = nullptr)
+    void filterBlock(audio_block_f32_t *pSrc, audio_block_f32_t *pDst = nullptr)
     {
       if (!pSrc) return;
 
@@ -443,6 +566,12 @@ class HQBiquad: public BiquadBase
 
     virtual bool coefficients(double b0, double b1, double b2, double a1, double a2)
     {
+      b0 = FilterUtils::denormDouble(b0);
+      b1 = FilterUtils::denormDouble(b1);
+      b2 = FilterUtils::denormDouble(b2);
+      a1 = FilterUtils::denormDouble(a1);
+      a2 = FilterUtils::denormDouble(a2);
+
       __disable_irq();
       _b0 = b0;
       _b1 = b1;
@@ -492,29 +621,52 @@ class HQ1p1zBiquad: public BiquadBase
       return *this;
     }
 
+    HQ1p1zBiquad& setLowpass(double frequency)
+    {
+      lowpass1p1z(frequency);
+      return *this;
+    }
+
     HQ1p1zBiquad& setHighpass1p1z(double frequency)
     {
       highpass1p1z(frequency);
       return *this;
     }
 
-    inline float filter(float x)
+    HQ1p1zBiquad& setHighpass(double frequency)
     {
-      double y = (_b0 * x) + (_b1 * _xn1) + (_a1 * _yn1);
-      _xn1 = x;
-      _yn1 = y;
+      highpass1p1z(frequency);
+      return *this;
+    }
 
+    float filter(float x)
+    {
+      double dx = (double)x;
+      double y = (_b0 * dx) + (_b1 * _xn1) + (_a1 * _yn1);
+      _xn1 = dx;
+      _yn1 = FilterUtils::denormDouble(y);
       return (float)y;
     }
 
-    void filterArray(float* pSrc, float* pDst, uint32_t len)
+    inline void filterArray(float *pSrc, float *pDst, uint32_t len)
     {
       if (!pSrc || !pDst || len == 0) return;
 
-      for (uint32_t i = 0; i < len; i++) pDst[i] = filter(pSrc[i]);
+      float *pSrcEnd = pSrc + len;
+      do
+      {
+        double x = (double)*pSrc++;
+        double y = (_b0 * x) + (_b1 * _xn1) + (_a1 * _yn1);
+        _xn1 = x;
+        _yn1 = y;
+        *pDst++ = (float)y;
+      }
+      while (pSrc < pSrcEnd);
+
+      _yn1 = FilterUtils::denormDouble(_yn1);
     }
 
-    void filterBlock(audio_block_f32_t* pSrc, audio_block_f32_t* pDst = nullptr)
+    void filterBlock(audio_block_f32_t *pSrc, audio_block_f32_t *pDst = nullptr)
     {
       if (!pSrc) return;
 
@@ -527,6 +679,10 @@ class HQ1p1zBiquad: public BiquadBase
 
     virtual bool coefficients(double b0, double b1, double b2, double a1, double a2)
     {
+      b0 = FilterUtils::denormDouble(b0);
+      b1 = FilterUtils::denormDouble(b1);
+      a1 = FilterUtils::denormDouble(a1);
+
       __disable_irq();
       _b0 = b0;
       _b1 = b1;
@@ -554,34 +710,60 @@ class LPFirstOrder
 
     void begin()
     {
-
     }
 
     void coefficient(float b)
     {
-      _b = b < 0.0f ? 0.0f : b > 1.0f ? 1.0f : b;
+      b = b < 0.0f ? 0.0f : b > 1.0f ? 1.0f : b;
+      _b = FilterUtils::denormFloat(b);
     }
 
-    void frequency(float freq)
+    void frequency(double freq)
     {
-      float omega = freq * 2.0f * (float)PI / _sample_rate_Hz;
-      float y = tanf(omega / 2.0f);
-      _b = (2.0f * y) / (y + 1.0f);
+      double hw0 = freq * PI / (double)_sample_rate_Hz;
+      double k = tan(hw0);
+      coefficient((float)((2.0 * k) / (k + 1.0)));
     }
 
-    inline float filter(float x)
+    LPFirstOrder& reset()
     {
-      return _y += _b * (x - _y);
+      return *this;
     }
 
-    void filterArray(float* pSrc, float* pDst, uint32_t len)
+    LPFirstOrder& setLowpass(double freq)
+    {
+      frequency(freq);
+      return *this;
+    }   
+
+    LPFirstOrder& setLowpass1p1z(double freq)
+    {
+      frequency(freq);
+      return *this;
+    }   
+
+    float filter(float x)
+    {
+      _y += _b * (x - _y);
+      _y = FilterUtils::denormFloat(_y);
+      return _y;
+    }
+
+    inline void filterArray(float *pSrc, float *pDst, uint32_t len)
     {
       if (!pSrc || !pDst || len == 0) return;
 
-      for (uint32_t i = 0; i < len; i++) pDst[i] = filter(pSrc[i]);
+      float *pSrcEnd = pSrc + len;
+      do
+      {
+        *pDst++ = _y += _b * (*pSrc++ - _y);
+      }
+      while (pSrc < pSrcEnd);
+
+      _y = FilterUtils::denormFloat(_y);
     }
 
-    void filterBlock(audio_block_f32_t* pSrc, audio_block_f32_t* pDst = nullptr)
+    void filterBlock(audio_block_f32_t *pSrc, audio_block_f32_t *pDst = nullptr)
     {
       if (!pSrc) return;
 
@@ -596,7 +778,7 @@ class LPFirstOrder
     float _y = 0.0f;
 };
 
-template <int N = 2>
+template <int N = 4>
 class StateVariableFilter
 {
   public:
@@ -605,7 +787,7 @@ class StateVariableFilter
       _sample_rate_Hz = sample_rate_Hz;
     }
 
-    void frequency(float freq)
+    void frequency(double freq)
     {
       _center = freq * (2.0f / (float)N) * (float)PI / _sample_rate_Hz;
     }
@@ -640,6 +822,10 @@ class StateVariableFilter
         _high = input - _low - _q * _band;
         _band += f * _high;
       }
+
+      _low = FilterUtils::denormFloat(_low);
+      _band = FilterUtils::denormFloat(_band);
+      _high = FilterUtils::denormFloat(_high);
     }
 
     inline float filter(float input)
@@ -672,12 +858,12 @@ class StateVariableFilter
     float _mix_low = 0.0f;
     float _mix_band = 1.0f;
     float _mix_high = 0.0f;
-    float _q = 1.0f;
-    float _center = 0.1f;
-    float _octave = 1.0f;
-    float _low = 0.0f;
-    float _band = 0.0f;
-    float _high = 0.0f;
+    float _q = 1.0;
+    float _center = 0.1;
+    float _octave = 1.0;
+    float _low = 0.0;
+    float _band = 0.0;
+    float _high = 0.0;
     inline float fasterexp2f(float p)
     {
       union {
@@ -692,21 +878,30 @@ class StateVariableFilter
 class DcBlock
 {
   public:
-    inline float filter(float x)
+    float filter(float x)
     {
-      _yn1 = x - _xn1 + _a * _yn1;
+      _yn1 = FilterUtils::denormFloat(x - _xn1 + _a * _yn1);
       _xn1 = x;
       return _yn1;
     }
 
-    inline void filterArray(float* pSrc, float* pDst, uint32_t len)
+    inline void filterArray(float *pSrc, float *pDst, uint32_t len)
     {
       if (!pSrc || !pDst || len == 0) return;
 
-      for (uint32_t i = 0; i < len; i++) pDst[i] = filter(pSrc[i]);
+      float *pSrcEnd = pSrc + len;
+      do
+      {
+        float x = *pSrc++;
+        *pDst++ = _yn1 = x - _xn1 + _a * _yn1;
+        _xn1 = x;
+      }
+      while (pSrc < pSrcEnd);
+
+      _yn1 = FilterUtils::denormFloat(_yn1);
     }
 
-    inline void filterBlock(audio_block_f32_t* pSrc, audio_block_f32_t* pDst = nullptr)
+    inline void filterBlock(audio_block_f32_t *pSrc, audio_block_f32_t *pDst = nullptr)
     {
       if (!pSrc) return;
 
@@ -715,7 +910,7 @@ class DcBlock
       filterArray(pSrc->data, pDst->data, pSrc->length);
     }
   private:
-    static constexpr float _a = 0.995f;
+    static constexpr float _a = 0.99725f;
     float _xn1 = 0.0f;
     float _yn1 = 0.0f;
 };
@@ -726,7 +921,7 @@ class Detector
   public:
     inline float detect(float x)
     {
-      _yn1 = x - _xn1 + _a * _yn1;
+      _yn1 = FilterUtils::denormFloat(x - _xn1 + _a * _yn1);
       _xn1 = x;
 
       float level = fabsf(_yn1);
@@ -738,12 +933,8 @@ class Detector
       return _level;
     }
 
-    inline float db()
-    {
-      return _level < 5.011872E-07f ? -126.0f : 20.0f * log10f(_level);
-    }
   private:
-    static constexpr float _a = 0.998f;
+    static constexpr float _a = 0.99725f;
     float _xn1 = 0.0f;
     float _yn1 = 0.0f;
 
@@ -771,22 +962,16 @@ class BasicLfo
     inline float peek(float phase = 0.0f)
     {
       phase += _phase;
-      while (phase > Half) phase -= FullRotation;
+      if (phase > Half) phase -= FullRotation;
 
       return value(phase);
     }
 
-    inline float increment()
+    inline float next()
     {
       _phase += _phaseIncrement;
-      while (_phase > Half) _phase -= FullRotation;
+      if (_phase > Half) _phase -= FullRotation;
       return value(_phase);
-    }
-
-    inline float next(float phase = 0.0f)
-    {
-      increment();
-      return peek(phase);
     }
 
     static constexpr float FullRotation = 4.0f;
@@ -818,7 +1003,6 @@ class TriangleLfo: public BasicLfo
     }
 };
 
-
 class SineLfo: public BasicLfo
 {
   public:
@@ -827,15 +1011,40 @@ class SineLfo: public BasicLfo
     static constexpr float _piOverHalf = (float)PI / Half;
     virtual inline float value(float phase)
     {
-      return -arm_cos_f32(phase * _piOverHalf);
+      return -cosf(phase * _piOverHalf);
+    }
+};
+
+class FastSineLfo: public BasicLfo
+{
+  public:
+    FastSineLfo(float sample_rate_Hz = AUDIO_SAMPLE_RATE_EXACT) : BasicLfo(sample_rate_Hz) {}
+  protected:
+    static constexpr float _phaseToIndex = 512.0f / FullRotation;
+    virtual inline float value(float phase)
+    {
+      phase += Half;
+      phase *= _phaseToIndex;
+
+      float mod_number;
+      float mod_fraction = modff(phase, &mod_number);
+
+      int index = (int)mod_number;
+      float a = sinTable512_f32[index];
+      float b = sinTable512_f32[index + 1];
+
+      return a + ((b - a) * mod_fraction);
     }
 };
 
 
-#define CUBIC
+//#define CUBIC
+#define LAGRANGE
 class Delay
 {
   public:
+    typedef float CDT;
+
     bool begin(float *delay, int d_length)
     {
       if (delay == _delay && d_length == _max_index) return true;
@@ -872,18 +1081,19 @@ class Delay
       if (++_w_index >= _max_index) _w_index = 0;
     }
 
-#ifdef CUBIC
+#if defined(CUBIC)
     float read(float delay_samples)
     {
       if (!_delay) return 0.0f;
 
-      delay_samples = delay_samples < 2.0f ? 2.0f : delay_samples > _max_delay ? _max_delay : delay_samples;
+      delay_samples = delay_samples < 1.0f ? 1.0f : delay_samples > _max_delay ? _max_delay : delay_samples;
 
-      float mod_number;
-      float frac =  1.0f - modff(delay_samples, &mod_number);
+      float i;
+      float d =  1.0f - modff(delay_samples, &i);
+      d = FilterUtils::denormFloat(d);
 
-      int im1 = _w_index - (int)mod_number - 2;
-      while (im1 < 0) im1 += _max_index;
+      int im1 = _w_index - (int)i - 2;
+      if (im1 < 0) im1 += _max_index;
 
       int i0 = im1 + 1;
       if (i0 >= _max_index) i0 = 0;
@@ -901,7 +1111,40 @@ class Delay
       float a = (3.0f * (x0 - x1) - xm1 + x2) * 0.5f;
       float b = 2.0f * x1 + xm1 - (5.0f * x0 + x2) * 0.5f;
       float c = (x1 - xm1) * 0.5f;
-      return (((a * frac) + b) * frac + c) * frac + x0;
+      return (((a * d) + b) * d + c) * d + x0;
+    }
+#elif defined (LAGRANGE)
+    float read(float delay_samples)
+    {
+      if (!_delay) return 0.0f;
+
+      delay_samples = delay_samples < 1.0f ? 1.0f : delay_samples > _max_delay ? _max_delay : delay_samples;
+
+      float i;
+      float d = 1.0f - modff(delay_samples, &i);
+      d = FilterUtils::denormFloat(d);
+
+      int i0 = _w_index - (int)i - 1;
+      if (i0 < 0) i0 += _max_index;
+
+      int i1 = i0 + 1;
+      if (i1 >= _max_index) i1 = 0;
+
+      int i2 = i1 + 1;
+      if (i2 >= _max_index) i2 = 0;
+
+      float x0  = _delay[i0];
+      float x1  = _delay[i1];
+      float x2  = _delay[i2];
+
+      float hdm1 = (d - 1.0f) * 0.5f;
+      float dm2 = d - 2.0f;
+
+      float d0 = dm2 * hdm1;
+      float d1 = -d * dm2;
+      float d2 = d * hdm1;
+
+      return x0 * d0 + x1 * d1 + x2 * d2;
     }
 #else
     float read(float delay_samples)
@@ -910,19 +1153,20 @@ class Delay
 
       delay_samples = delay_samples < 0.0f ? 0.0f : delay_samples > _max_delay ? _max_delay : delay_samples;
 
-      float mod_number;
-      float mod_fraction = modff(delay_samples, &mod_number);
+      float i;
+      float d = modff(delay_samples, &i);
+      d = FilterUtils::denormFloat(d);
 
-      int index = _w_index - (int)mod_number - 2;
-      while (index < 0) index += _max_index;
+      int i0 = _w_index - (int)i - 1;
+      if (i0 < 0) i0 += _max_index;
 
-      int next = index + 1;
-      if (next >= _max_index) next = 0;
+      int i1 = i0 + 1;
+      if (i1 >= _max_index) i1 = 0;
 
-      float s0 = _delay[index];
-      float s1 = _delay[next];
+      float s0 = _delay[i0];
+      float s1 = _delay[i1];
 
-      return (mod_fraction * (s0 - s1)) + s1;
+      return (d * (s0 - s1)) + s1;
     }
 #endif
 
@@ -930,10 +1174,10 @@ class Delay
     {
       if (!_delay) return 0.0f;
 
-      delay_samples = delay_samples < 0 ? 0 : delay_samples > _max_index - 1 ? _max_index - 1 : delay_samples;
+      delay_samples = delay_samples < 0 ? 0 : delay_samples > _max_delay ? _max_delay : delay_samples;
 
       int index = _w_index - delay_samples - 1;
-      while (index < 0) index += _max_index;
+      if (index < 0) index += _max_index;
 
       return _delay[index];
     }
@@ -953,25 +1197,34 @@ class Delay
       return output;
     }
 
-    float allpass(float input, float modulation)
+    float allpass(float input, float delay_samples)
     {
-      float bufout = read((float)_dts + modulation);
+      float bufout = read(delay_samples);
       float temp = input * -_feedback;
       float output = bufout + temp;
       write(input + (output * _feedback));
       return output;
     }
 
-    void delayBlock(audio_block_f32_t* pSrc, audio_block_f32_t* pDst = nullptr)
+    inline void delayArray(float *pSrc, float *pDst, uint32_t len)
+    {
+      if (!pSrc || !pDst || len == 0) return;
+      
+      float *pSrcEnd = pSrc + len;
+      do
+      {
+        write(*pSrc++);
+        *pDst++ = readSample(_dts);
+      }
+      while (pSrc < pSrcEnd);
+    }
+
+    void delayBlock(audio_block_f32_t *pSrc, audio_block_f32_t *pDst = nullptr)
     {
       if (pSrc == nullptr) return;
       if (pDst == nullptr) pDst = pSrc;
 
-      for (uint16_t i = 0; i < pSrc->length; i++)
-      {
-        write(pSrc->data[i]);
-        pDst->data[i] = readSample(_dts);
-      }
+      delayArray(pSrc->data, pDst->data, pSrc->length);
     }
 
     float maxTime()
@@ -993,7 +1246,7 @@ class Delay
     uint16_t _max_index = 0;
     float _max_delay = 0.0f;
     uint16_t _w_index = 0;
-    float* _delay = nullptr;
+    float *_delay = nullptr;
     int _dts = 0;
     float _feedback = 0.0f;
     float _vn_1 = 0.0f;
@@ -1020,13 +1273,15 @@ class StaticDelay: public Delay
 class LQDelay
 {
   public:
+    typedef int16_t CDT;
+
     bool begin(int16_t *delay, int d_length, float sample_rate_Hz = AUDIO_SAMPLE_RATE_EXACT)
     {
       if (delay == _delay && d_length == _max_index) return true;
 
       if (!delay || d_length < 2) return false;
 
-      _f.reset().setLowpass(sample_rate_Hz * 0.25f).setLowpass(sample_rate_Hz * 0.25f).begin();
+      _f.reset().setLowpass(sample_rate_Hz * 0.20f).begin();
 
       _w_index = 0;
       _max_index = d_length;
@@ -1090,10 +1345,10 @@ class LQDelay
     }
 
   protected:
-    static constexpr float _ftoi = 32768.0f / 1.5f;
+    static constexpr float _ftoi = 32768.0f / 1.0f;
     static constexpr float _itof = 1.0f / _ftoi;
     DcBlock _dc;
-    CascadeBiquad<2> _f;
+    CascadeBiquad<1> _f;
     bool _skip = true;
     uint16_t _max_index = 0;
     float _max_delay = 0.0f;
@@ -1232,16 +1487,16 @@ class Freeverb
       _cf8.damping(damping);
     }
 
-    void processBlock(audio_block_f32_t* pSrc, audio_block_f32_t* pDst = nullptr)
+    void processArray(float *pSrc, float *pDst, uint32_t len)
     {
-      if (pSrc == nullptr) return;
-      if (pDst == nullptr) pDst = pSrc;
+      if (pSrc == nullptr || pDst == nullptr || len == 0) return;
 
-      for (int i = 0; i < pSrc->length; i++)
+      float *pSrcEnd = pSrc + len;
+      do
       {
-        float input = pSrc->data[i];
-        float output = 0.0f;
-        output += _cf1.comb(input);
+        float input = *pSrc++;
+
+        float output = _cf1.comb(input);
         output += _cf2.comb(input);
         output += _cf3.comb(input);
         output += _cf4.comb(input);
@@ -1255,8 +1510,17 @@ class Freeverb
         output = _ap3.allpass(output);
         output = _ap4.allpass(output);
 
-        pDst->data[i] = output;
+        *pDst++ = output;
       }
+      while (pSrc < pSrcEnd);
+    }
+
+    void processBlock(audio_block_f32_t *pSrc, audio_block_f32_t *pDst = nullptr)
+    {
+      if (pSrc == nullptr) return;
+      if (pDst == nullptr) pDst = pSrc;
+
+      processArray(pSrc->data, pDst->data, pSrc->length);
     }
     
   protected:

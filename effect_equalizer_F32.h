@@ -44,21 +44,21 @@ class AudioEffectEqualizer_F32 :
         case 7: _g7 = db; break;
       }
 
-      _f1.reset().setPeak(100.0, _g1, _sqrt2).begin();
+      _f1.reset().setPeak(100.0, _g1, 1.0).begin();
       _f2.reset()
-        .setPeak(200.0, _g2, _sqrt2)
-        .setPeak(400.0, _g3, _sqrt2)
-        .setPeak(800.0, _g4, _sqrt2)
-        .setPeak(1600.0, _g5, _sqrt2)
-        .setPeak(3200.0, _g6, _sqrt2)
-        .setHighShelf(6400.0, _g7, _sqrt2)
+        .setPeak(200.0, _g2, 1.0)
+        .setPeak(400.0, _g3, 1.0)
+        .setPeak(800.0, _g4, 1.0)
+        .setPeak(1600.0, _g5, 1.0)
+        .setPeak(3200.0, _g6, 1.0)
+        .setHighShelf(6400.0, _g7, 0.0)
         .setLowpass1p1z(15000.0)
         .begin();
     }
 
     void level(float level)
     {
-      level = level < -15.0f ? -15.0f : level > 15.0f ? 15.0f : level;
+      level = level < -9.0f ? -9.0f : level > 9.0f ? 9.0f : level;
       _level = powf(10.0f, level / 20.0f);
     }
 
@@ -84,8 +84,6 @@ class AudioEffectEqualizer_F32 :
 
     HQBiquad _f1;
     CascadeBiquad<7> _f2;
-
-    static constexpr double _sqrt2 = 1.414213562373095;
 
     double _g1 = 0.0;
     double _g2 = 0.0;

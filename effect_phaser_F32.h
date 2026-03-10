@@ -76,13 +76,16 @@ class AudioEffectPhaser_F32 :
 
       if (_stages > 0)
       {
-        for (uint16_t i = 0; i < block->length; i++)
+        float *p = block->data;
+        float *end = p + block->length;
+        do
         {
+          float sample = *p;
+
           _x += (_lfo.next() - _x) * _smooth;
 
-          float g = (_x * _gx) + _gz;
-          
-          float s_in = block->data[i];
+          float g = (_x * _gx) + _gz;          
+          float s_in = sample;
 
           int s = 0;
           float s_out = _s[s] - (g * s_in * 0.995f);
@@ -122,8 +125,9 @@ class AudioEffectPhaser_F32 :
               _fbk = s_out * _res;
           }
 
-          block->data[i] = (block->data[i] * _dry) + (s_out * _wet);
+          *p++ = (sample * _dry) + (s_out * _wet);
         }
+        while (p < end);
       }
 
       AudioStream_F32::transmit(block, 0);

@@ -57,31 +57,30 @@ class AudioEffectAutoWah_F32 :
 
     virtual void update(void)
     {
-      float control = _control;
-      float sensitivity = _sensitivity;
-      float smooth = _smooth;
-
-      audio_block_f32_t* block = AudioStream_F32::receiveWritable_f32(0);
+      audio_block_f32_t *block = AudioStream_F32::receiveWritable_f32(0);
       if (!block) return;
 
       if (_enable)
       {
         _svf.mix(_dry, 0.25f * _wet, 0.55f * _wet, 0.0f);
 
-        for (uint16_t i = 0; i < block->length; i++)
+        float *p = block->data;
+        float *end = p + block->length;
+        do
         {
-          float sample = block->data[i];
-          float level = _d.detect(sample) * sensitivity;
-          control += (level - control) * (level > control ? smooth : _decay);
-          control = control < -_octave ? -_octave : control > _octave ? _octave : control;
-          _svf.control(control);
+          float sample = *p;
+          float level = _d.detect(sample) * _sensitivity;
+          _control += (level - _control) * (level > _control ? _smooth : _decay);
+          _control = _control < -_octave ? -_octave : _control > _octave ? _octave : _control;
+          _svf.control(_control);
           sample = _svf.filter(sample);
 
-          block->data[i] = sample;
+          *p++ = sample;
         }
+        while (p < end);
       }
 
-      _control = control;
+      _control = FilterUtils::denormFloat(_control);
 
       AudioStream_F32::transmit(block, 0);
       AudioStream_F32::release(block);

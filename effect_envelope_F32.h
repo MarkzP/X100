@@ -79,9 +79,12 @@ class AudioEffectEnvelope_F32 :
 
       if (_enable)
       {
-        for (uint16_t i = 0; i < block->length; i++)
+        float *p = block->data;
+        float *end = p + block->length;
+        do
         {
-          float sample = block->data[i];
+          float sample = *p;
+
           float unit = fabsf(_preFilter.filter(sample));
 
           _fast += (unit - _fast) * (unit > _fast ? 1.0f : 0.01f);
@@ -93,9 +96,9 @@ class AudioEffectEnvelope_F32 :
           if (_opening) _gate += (_attmin - _gate) * _attack;
           else _gate += (_attmax - _gate) * _release;
 
-          //sample = _delay.delay(sample);
-          block->data[i] = sample * ln2unit(_gate);
+          *p++ = sample * ln2unit(_gate);
         }
+        while (p < end);
       }
 
       AudioStream_F32::transmit(block, 0);
@@ -119,7 +122,6 @@ class AudioEffectEnvelope_F32 :
     
     CascadeBiquad<2> _preFilter;
     HQBiquad _surgeFilter;
-    //StaticDelay<256> _delay;
     
     const float _attmin = 0.0f;
     const float _attmax = -7.5f;

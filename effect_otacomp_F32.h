@@ -70,11 +70,14 @@ class AudioEffectOtaComp_F32 :
         _dcFilter.filterBlock(block);
         _preFilter.filterBlock(block);
 
-        for (uint16_t i = 0; i < block->length; i++)
+        float *p = block->data;
+        float *end = p + block->length;
+        do
         {
           // OTA
-          float sample = block->data[i] * _gain;
-          block->data[i] = sample * _output;
+          float sample = *p; 
+          sample *= _gain;
+          *p++ = sample * _output;
 
           // Diodes
           sample = fabsf(sample);
@@ -89,6 +92,7 @@ class AudioEffectOtaComp_F32 :
           float gain = _mingain + (sample * _sensitivity);
           _gain += (gain - _gain) * (gain < _gain ? _attack : _release);
         }
+        while (p < end);
 
         _postFilter.filterBlock(block);
       }

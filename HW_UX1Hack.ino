@@ -56,11 +56,12 @@ const byte led_chars[] = {
 
 
 
-void print(const char *s, int line = 0)
+void print(const char *s)
 {
   byte buf[] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
-  for (int i = 0, p = 0; i < 8 && s[p] != 0; i++)
+  int i = 0;
+  for (int p = 0; i < 8 && s[p] != 0; i++)
   {
     buf[i] = led_chars[s[p++] & 0x7f];
     if (s[p] == '.' || s[p] == '_') {
@@ -73,11 +74,6 @@ void print(const char *s, int line = 0)
   SPI.transfer32(*((uint32_t*)&buf[4]));
   SPI.transfer32(*((uint32_t*)&buf[0]));
   digitalWriteFast(PIN_SPI_CS, HIGH);
-}
-
-void clear()
-{
-  print("        ");
 }
 
 void displayTunerHW(float freq, int note, int semitone, float cents)
@@ -136,7 +132,8 @@ FLASHMEM void HW_Setup()
   SPI.setDataMode(SPI_MODE0);
   pinMode(PIN_SPI_CS, OUTPUT);
   digitalWriteFast(PIN_SPI_CS, HIGH);
-  clear();
+
+  print("        ");
 }
 
 void HW_Loop()

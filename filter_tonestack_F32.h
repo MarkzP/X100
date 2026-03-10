@@ -100,9 +100,9 @@ public:
 	 */
 	void setTone(float b, float m, float t)
 	{  
-		b = constrain(b, 0.0f, 1.0f); bass = b;
-		m = constrain(m, 0.0f, 1.0f); mid = m;
-		t = constrain(t, 0.0f, 1.0f); treble = t;
+		b = constrain(b, 0.0f, 1.0f);
+		m = constrain(m, 0.0f, 1.0f);
+		t = constrain(t, 0.0f, 1.0f);
 
     if (b < 0.5f) b *= 0.2f;
     else b = b * 1.8f - 0.8f;
@@ -162,7 +162,7 @@ private:
 		b3lm, b3m2, b3m, b3t, b3tm, b3tl,
 		a0, a1d, a1m, a1l, a2m, a2lm, a2m2, a2l, a2d,
 		a3lm, a3m2, a3m, a3l, a3d; // intermediate calculations
-	float bass, mid, treble, c, gain;
+	float c, gain;
 };
 
 #endif // _FILTER_TONESTACK_F32_H_

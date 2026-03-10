@@ -70,8 +70,8 @@ class AudioEffectDistortion_F32 : public AudioStream_F32
       float hpf1 = (bottom * 250.0f) + 125.0f;
       float lpf1 = 14000.0f;
 
-      _preFilter1.reset().setHighpass(hpf1).begin();
-      _preFilter2.reset().setLowpass(lpf1).begin();
+      _preFilter1.reset().setHighpass1p1z(hpf1).begin();
+      _preFilter2.reset().setLowpass1p1z(lpf1).begin();
     }
 
     void color(float color = 0.5f, float skew = 0.0f)
@@ -102,7 +102,7 @@ class AudioEffectDistortion_F32 : public AudioStream_F32
     void level(float level = 1.0f)
     {
       level = level < 0.0f ? 0.0f : level > 1.0f ? 1.0f : level;
-      _level = (powf(level, 1.5f) * 0.3f) + 0.03f;
+      _level = powf(level, 1.5f) * 0.5f;
     }
 
     virtual void update(void)
@@ -119,55 +119,49 @@ class AudioEffectDistortion_F32 : public AudioStream_F32
 
       _preFilter1.filterBlock(block);
       _preFilter2.filterBlock(block);
-      BlockOperations::scale(block, _gain);
 
       int len = block->length;
       float *p = block->data;
       if (_multirate)
       {
         // Interpolate
-        arm_fir_interpolate_f32(&_interpolator, block->data, _interpolated, block->length);
+        arm_fir_interpolate_f32(&_interpolator, p, _interpolated, len);
         len *= _interpolation;
         p = _interpolated;
       }
 
-      float pcomp = _pcomp;
-      float ncomp = _ncomp;
-      float pcurve = _pcurve;
-      float pcurvep1 = pcurve + 1.0f;
-      float ncurve = _ncurve;
-      float ncurvep1 = ncurve + 1.0f;
-      float skew = _skew;
-      float skewm1 = _skew - 1.0f;
-
-      for (int i = 0; i < len; i++)
+      float *end = p + len;
+      do
       {
-        float sample = p[i];
+        float sample = *p;
+        
+        sample *= _gain;
 
         if (sample > 0.0f)
         {
-          sample *= pcomp;
-          sample = pcurvep1 * sample / (1.0f + (pcurve * sample));
+          sample *= _pcomp;
+          sample = (_pcurve + 1.0f) * sample / (1.0f + (_pcurve * sample));
         }
         else
         {
-          sample *= ncomp;
-          sample = ncurvep1 * sample / (1.0f - (ncurve * sample));
+          sample *= _ncomp;
+          sample = (_ncurve + 1.0f) * sample / (1.0f - (_ncurve * sample));
         }
 
         sample *= _twoThirds;
         sample = clip(sample);
         sample = (sample - (cube(sample) * _oneThird)) * _threeHalfs;
 
-        sample *= (fabsf(sample) + skew) / (square(sample) + skewm1 * fabsf(sample) + 1.0f);
+        sample *= (fabsf(sample) + _skew) / (square(sample) + (_skew - 1.0f) * fabsf(sample) + 1.0f);
 
-        p[i] = sample;
+        sample *= _level;
+
+        *p++ = sample;
       }
+      while (p < end);
 
       // Decimate
       if (_multirate) arm_fir_decimate_f32(&_decimator, _interpolated, block->data, len);
-
-      BlockOperations::scale(block, _level);
 
       _postFilter1.filterBlock(block);
       _postFilter2.filterBlock(block);
@@ -187,7 +181,7 @@ class AudioEffectDistortion_F32 : public AudioStream_F32
     float _skew = 1.0f;
     float _level = 10.0f;
     float _dither = 0.5f;
-    HQBiquad  _preFilter1;
+    HQ1p1zBiquad  _preFilter1;
     CascadeBiquad<1> _preFilter2;
     HQ1p1zBiquad  _postFilter1;
     CascadeBiquad<4> _postFilter2;
