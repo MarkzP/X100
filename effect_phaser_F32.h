@@ -93,37 +93,16 @@ class AudioEffectPhaser_F32 :
           s_in = s_out + _fbk;
           _fbk = 0.0f;
           
-          switch (_stages)
+          for (int i = 1; i < _stages - 1; i++)
           {
-            case 8:
               s_out = _s[s] - (g * s_in);
               _s[s++] = s_in + (g * s_out);
-              s_in = s_out;
-            case 7:
-              s_out = _s[s] - (g * s_in);
-              _s[s++] = s_in + (g * s_out);
-              s_in = s_out;
-            case 6:
-              s_out = _s[s] - (g * s_in);
-              _s[s++] = s_in + (g * s_out);
-              s_in = s_out;
-            case 5:
-              s_out = _s[s] - (g * s_in);
-              _s[s++] = s_in + (g * s_out);
-              s_in = s_out;
-            case 4:
-              s_out = _s[s] - (g * s_in * 0.98f);
-              _s[s++] = s_in + (g * s_out * 0.98f);
-              s_in = s_out;
-            case 3:
-              s_out = _s[s] - (g * s_in);
-              _s[s++] = s_in + (g * s_out);
-              s_in = s_out;
-            case 2:
-              s_out = _s[s] - (g * s_in);
-              _s[s] = s_in + (g * s_out);
-              _fbk = s_out * _res;
+              s_in = s_out;            
           }
+
+          s_out = _s[s] - (g * s_in * 0.98f);
+          _s[s] = s_in + (g * s_out * 0.98f);
+          _fbk = s_out * _res;
 
           *p++ = (sample * _dry) + (s_out * _wet);
         }
@@ -142,7 +121,7 @@ class AudioEffectPhaser_F32 :
     float _gz;
     float _gx;
     float _smooth;
-    static const int _maxStages = 8;
+    static const int _maxStages = 20;
     int _stages;
     float _s[_maxStages];
     float _fbk;
@@ -152,7 +131,7 @@ class AudioEffectPhaser_F32 :
 
     float coeff(float f)
     {
-      float K = tanf(3.14159265358979f * f / _sample_rate_Hz);
+      float K = tanf(f * (float)PI / _sample_rate_Hz);
       return (1.0f - K) / (1.0f + K);
     }
 

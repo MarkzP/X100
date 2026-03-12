@@ -607,6 +607,7 @@ class HQ1p1zBiquad: public BiquadBase
 
     HQ1p1zBiquad& reset()
     {
+      coefficients(1.0, 0.0, 0.0, 0.0, 0.0);
       return *this;
     }
 
@@ -727,6 +728,7 @@ class LPFirstOrder
 
     LPFirstOrder& reset()
     {
+      coefficient(1.0f);
       return *this;
     }
 
@@ -1230,6 +1232,11 @@ class Delay
     float maxTime()
     {
       return _max_delay / AUDIO_SAMPLE_RATE_EXACT;
+    }
+
+    static constexpr float msToSamples(float ms)
+    {
+      return AUDIO_SAMPLE_RATE_EXACT * ms * 0.001f;
     }
 
     static constexpr uint16_t bufferSizeMs(float ms)

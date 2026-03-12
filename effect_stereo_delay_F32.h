@@ -44,31 +44,33 @@ class AudioEffectStereoDelay_F32 :
     void drive(float drive)
     {
       drive = drive < 0.0f ? 0.0f : drive > 1.0f ? 1.0f : drive;
-      _drive = (powf(drive, 2.0f) * 10.0f) + 1.0f;
+      drive = powf(drive, 2.0f);
+      _attn = 0.1f / (drive + 0.1f);
+      _drive = (drive * 50.0f) + (4.0f / 5.0f);
     }
 
     void time(float ms)
     {
       ms = ms < 10.0f ? 10.0f : ms;
-      _samples = ms * _sample_rate_Hz * 0.001f;
+      _samples = Delay::msToSamples(ms);// ms * _sample_rate_Hz * 0.001f;
     }
 
     void rate(float rate)
     {
       rate = rate < 0.0f ? 0.0f : rate > 1.0f ? 1.0f : rate;
-      _lfo.freq(rate * 2.25f + 0.25f);
+      _lfo.freq(rate * 1.8f + 0.2f);
     }
 
     void depth(float depth)
     {
       depth = depth < 0.0f ? 0.0f : depth > 1.0f ? 1.0f : depth;
-      _depth = 0.5f * depth * _sample_rate_Hz * 0.001f;
+      _depth = Delay::msToSamples(depth * 0.75f);
     }
 
     void spread(float spread)
     {
       spread = spread < 0.0f ? 0.0f : spread > 1.0f ? 1.0f : spread;
-      _spread = 10.0f * spread * _sample_rate_Hz * 0.001f;
+      _spread = Delay::bufferSizeMs(spread * 15.0f);
     }
 
     void repeat(float repeat)
@@ -78,7 +80,7 @@ class AudioEffectStereoDelay_F32 :
 
     void wet(float wet = 0.2f)
     {
-      _wet = wet < -1.0f ? -1.0f : wet > 1.0f ? 1.0f : wet;
+      _wet = wet < 0.0f ? 0.0f : wet > 1.0f ? 1.0f : wet;
     }
 
     void dry(float dry = 1.0f)
@@ -112,47 +114,57 @@ class AudioEffectStereoDelay_F32 :
         return;
       }
 
+      float samples = _samples;
+      float smoothed_samples = _smoothed_samples;
+      float depth = _depth;
       float drive = _drive;
-      float attn = 0.5f / drive;
-      float repeat = _repeat / drive;
+      float attn = _attn;
+      float spread = _spread;
+      float repeat = _repeat;
       float input = _enable ? 1.0f : 0.0f;
       float dry = _enable ? _dry : 1.0f;
       float wet = _wet;
       float feedbackL = _feedbackL;
       float feedbackR = _feedbackR;
+
       float *pl = blockL->data;
       float *pr = blockR->data;
       float *endl = pl + blockL->length;
       do
       {
-        _smoothed_samples += (_samples - _smoothed_samples) * 0.00075f;
-        float modulation = _lfo.next() * _depth;
+        smoothed_samples += (samples - smoothed_samples) * 0.00075f;
+        float modulation = _lfo.next() * depth;
 
         float dryL = *pl;
         float dryR = *pr;
 
         float sampleL = dryL * input;
         float sampleR = dryR * input;
-        
-        sampleL = nonLinear(sampleL * drive);
-        sampleL = _filterL.filter(sampleL);
 
-        sampleR = nonLinear(sampleR * drive);
+        sampleL += feedbackL;
+        sampleR += feedbackR;
+        
+        sampleL = softClip(sampleL * drive) * attn;
+        sampleR = softClip(sampleR * drive) * attn;
+
+        sampleL = _filterL.filter(sampleL);
         sampleR = _filterR.filter(sampleR);
 
-        _delayL.write(sampleL + feedbackL);        
-        _delayR.write(sampleR + feedbackR);
+        _delayL.write(sampleL);        
+        _delayR.write(sampleR);
 
-        float yL = _delayL.read(_smoothed_samples + modulation - _spread) * attn;
-        float yR = _delayR.read(_smoothed_samples - modulation + _spread) * attn;
+        float yL = _delayL.read(smoothed_samples + modulation - spread);
+        float yR = _delayR.read(smoothed_samples - modulation + spread);
 
-        feedbackL = _delayL.read(_smoothed_samples) * repeat;
-        feedbackR = _delayR.read(_smoothed_samples) * repeat;
+        feedbackL = yL * repeat;
+        feedbackR = yR * repeat;
 
         *pl++ = (dryL * dry) + (yL * wet);
         *pr++ = (dryR * dry) + (yR * wet);
       }
       while (pl < endl);
+
+      _smoothed_samples = smoothed_samples;
 
       _feedbackL = FilterUtils::denormFloat(feedbackL);
       _feedbackR = FilterUtils::denormFloat(feedbackR);
@@ -181,6 +193,7 @@ class AudioEffectStereoDelay_F32 :
     float _maxrate = 0.25f;
     float _smoothed_samples = 0.0f;
     float _drive = 0.5f;
+    float _attn = 1.0f; 
     float _depth = 0.0f;
     float _spread = 0.0f;
     float _feedbackL = 0.0f;
@@ -190,12 +203,14 @@ class AudioEffectStereoDelay_F32 :
     float _dry = 0.3f;
     bool _enable = false;
 
-    inline float nonLinear(float sample)
+    inline float softClip(float sample)
     {
-        sample = sample < -1.0f ? -1.0f : sample > 1.0f ? 1.0f : sample;
-        double ds = (double)sample;
-        float s3 = (float)(ds * ds * ds);
-        return (sample - (s3 * (1.0f / 3.0f))) * (3.0f / 2.0f);      
+      double s1 = (double)(sample < -1.0f ? -1.0f : sample > 1.0f ? 1.0f : sample);
+      if (abs(s1) < 2.5118864e-4f) s1 = 0.0;
+      double s2 = s1 * s1;
+      double s3 = s2 * s1;
+      double s5 = s2 * s3;
+      return (sample - (float)(s5 * (1.0 / 5.0))) * (5.0f / 4.0f);
     }
 };
 

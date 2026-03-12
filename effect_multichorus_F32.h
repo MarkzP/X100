@@ -475,12 +475,17 @@ hkkh
                 .setLowpass(6900.0f);
             _voices[0]
                 .range(8.0f)
-                .mixL(1.0f)
+                .mixL(1.0f);
+            _voices[3]
+                .range(8.0f)
                 .mixR(1.0f);
           }
 
           _voices.freq(mapExp(_rate, 0.0625, 6.5f, 3.5f));
           _voices[0]
+              .min(mapExp(_color, 0.0f, 0.5f))
+              .depth(mapExp(_depth, 0.3f, 1.0f, 3.0f));
+          _voices[3]
               .min(mapExp(_color, 0.0f, 0.5f))
               .depth(mapExp(_depth, 0.3f, 1.0f, 3.0f));
           break;

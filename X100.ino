@@ -33,19 +33,19 @@
 AudioSettings_F32 audio_settings(AUDIO_SAMPLE_RATE_EXACT, AUDIO_BLOCK_SAMPLES);
 
 // GUItool: begin automatically generated code
-AudioInputI2S_F32        audioIn;        //xy=63,188
-AudioSynthWaveformSine_F32 testTone;       //xy=133,353
-AudioEffectHDR_F32       hdr;            //xy=196,189
-AudioMixer4_F32          inputMixer;     //xy=330,208
-AudioAnalyzeLevel_F32    levelIn;        //xy=474,272
-AudioConvert_F32toI16    toTuner;        //xy=478,141
-AudioEffectPreamp_F32    preamp;         //xy=481,207
+AudioInputI2S_F32        audioIn;        //xy=64.84210586547852,186.36842727661133
+AudioSynthWaveformSine_F32 inputTestTone;       //xy=176,225.3684139251709
+AudioEffectHDR_F32       hdr;            //xy=195.52630996704102,186.36842727661133
+AudioMixer4_F32          inputMixer;     //xy=330.5262985229492,205.8947353363037
+AudioAnalyzeLevel_F32    levelIn;        //xy=477,251
+AudioEffectPreamp_F32    preamp;         //xy=479.12500762939453,205.75000286102295
+AudioConvert_F32toI16    toTuner;        //xy=481,161
 AudioEffectEnvelope_F32  envelope;       //xy=613,206
 AudioEffectAutoWah_F32   wah;            //xy=747,206
-AudioEffectOtaComp_F32   ota;            //xy=875,207
-AudioEffectDistortion_F32 distortion;     //xy=1005,207
-AudioFilterToneStack_F32 toneStack;      //xy=1142,207
-AudioEffectEqualizer_F32 equalizer;      //xy=1280,207
+AudioEffectOtaComp_F32   ota;            //xy=875,206
+AudioEffectDistortion_F32 distortion;     //xy=1005,206
+AudioFilterToneStack_F32 toneStack;      //xy=1142,206
+AudioEffectEqualizer_F32 equalizer;      //xy=1280,206
 AudioEffectPhaser_F32    phaser;         //xy=1409,206
 AudioEffectTremolo_F32   tremolo;        //xy=1530,206
 AudioEffectMultiChorus_F32 chorus;         //xy=1652,206
@@ -53,43 +53,41 @@ AudioEffectStereoDelay_F32 stereodelay;    //xy=1804.8787460327148,206.302981376
 AudioEffectMyVerb_F32    reverb;         //xy=1955.13627243042,205.92427825927734
 AudioEffectCabSim_F32    cabsim;         //xy=2100.2728385925293,205.99999809265137
 AudioEffectMultiband_F32 sonic;          //xy=2229.151523590088,205.83334159851074
-AudioAnalyzeLevel_F32    levelOutL;      //xy=2393.818183898926,110
-AudioMixer4_F32          outputMixerR;         //xy=2397.818183898926,255
-AudioAnalyzeLevel_F32    levelOutR;      //xy=2397.818183898926,329
-AudioMixer4_F32          outputMixerL;         //xy=2398.818183898926,183
+AudioAnalyzeLevel_F32    levelOutL;      //xy=2394.818115234375,126
+AudioAnalyzeLevel_F32    levelOutR;      //xy=2394.818115234375,313
+AudioMixer4_F32          outputMixerR;         //xy=2406.818115234375,255
+AudioMixer4_F32          outputMixerL;         //xy=2407.818115234375,183
 AudioOutputI2S_F32       audioOut;       //xy=2581.818183898926,218
 AudioConnection_F32          patchCord1(audioIn, 0, hdr, 0);
 AudioConnection_F32          patchCord2(audioIn, 1, hdr, 1);
-AudioConnection_F32          patchCord3(testTone, 0, inputMixer, 2);
-AudioConnection_F32          patchCord4(testTone, 0, outputMixerL, 2);
-AudioConnection_F32          patchCord5(testTone, 0, outputMixerR, 2);
-AudioConnection_F32          patchCord6(hdr, 0, inputMixer, 0);
-AudioConnection_F32          patchCord7(inputMixer, levelIn);
-AudioConnection_F32          patchCord8(inputMixer, toTuner);
-AudioConnection_F32          patchCord9(inputMixer, preamp);
-AudioConnection_F32          patchCord10(preamp, envelope);
-AudioConnection_F32          patchCord11(envelope, wah);
-AudioConnection_F32          patchCord12(wah, ota);
-AudioConnection_F32          patchCord13(ota, distortion);
-AudioConnection_F32          patchCord14(distortion, toneStack);
-AudioConnection_F32          patchCord15(toneStack, equalizer);
-AudioConnection_F32          patchCord16(equalizer, phaser);
-AudioConnection_F32          patchCord17(phaser, tremolo);
-AudioConnection_F32          patchCord18(tremolo, chorus);
-AudioConnection_F32          patchCord19(chorus, 0, stereodelay, 0);
-AudioConnection_F32          patchCord20(chorus, 1, stereodelay, 1);
-AudioConnection_F32          patchCord21(stereodelay, 0, reverb, 0);
-AudioConnection_F32          patchCord22(stereodelay, 1, reverb, 1);
-AudioConnection_F32          patchCord23(reverb, 0, cabsim, 0);
-AudioConnection_F32          patchCord24(reverb, 1, cabsim, 1);
-AudioConnection_F32          patchCord25(cabsim, 0, sonic, 0);
-AudioConnection_F32          patchCord26(cabsim, 1, sonic, 1);
-AudioConnection_F32          patchCord27(sonic, 0, outputMixerL, 0);
-AudioConnection_F32          patchCord28(sonic, 0, levelOutL, 0);
-AudioConnection_F32          patchCord29(sonic, 1, outputMixerR, 0);
-AudioConnection_F32          patchCord30(sonic, 1, levelOutR, 0);
-AudioConnection_F32          patchCord31(outputMixerR, 0, audioOut, 1);
-AudioConnection_F32          patchCord32(outputMixerL, 0, audioOut, 0);
+AudioConnection_F32          patchCord3(inputTestTone, 0, inputMixer, 3);
+AudioConnection_F32          patchCord4(hdr, 0, inputMixer, 0);
+AudioConnection_F32          patchCord5(inputMixer, levelIn);
+AudioConnection_F32          patchCord6(inputMixer, toTuner);
+AudioConnection_F32          patchCord7(inputMixer, preamp);
+AudioConnection_F32          patchCord8(preamp, envelope);
+AudioConnection_F32          patchCord9(envelope, wah);
+AudioConnection_F32          patchCord10(wah, ota);
+AudioConnection_F32          patchCord11(ota, distortion);
+AudioConnection_F32          patchCord12(distortion, toneStack);
+AudioConnection_F32          patchCord13(toneStack, equalizer);
+AudioConnection_F32          patchCord14(equalizer, phaser);
+AudioConnection_F32          patchCord15(phaser, tremolo);
+AudioConnection_F32          patchCord16(tremolo, chorus);
+AudioConnection_F32          patchCord17(chorus, 0, stereodelay, 0);
+AudioConnection_F32          patchCord18(chorus, 1, stereodelay, 1);
+AudioConnection_F32          patchCord19(stereodelay, 0, reverb, 0);
+AudioConnection_F32          patchCord20(stereodelay, 1, reverb, 1);
+AudioConnection_F32          patchCord21(reverb, 0, cabsim, 0);
+AudioConnection_F32          patchCord22(reverb, 1, cabsim, 1);
+AudioConnection_F32          patchCord23(cabsim, 0, sonic, 0);
+AudioConnection_F32          patchCord24(cabsim, 1, sonic, 1);
+AudioConnection_F32          patchCord25(sonic, 0, outputMixerL, 0);
+AudioConnection_F32          patchCord26(sonic, 0, levelOutL, 0);
+AudioConnection_F32          patchCord27(sonic, 1, outputMixerR, 0);
+AudioConnection_F32          patchCord28(sonic, 1, levelOutR, 0);
+AudioConnection_F32          patchCord29(outputMixerR, 0, audioOut, 1);
+AudioConnection_F32          patchCord30(outputMixerL, 0, audioOut, 0);
 // GUItool: end automatically generated code
 
 /**********************************************************************************************************************/
@@ -152,27 +150,17 @@ bool debug = false;
 
 FLASHMEM void inputTone(float freq = 1000.0f, float amp = 0.0f)
 {
-  inputMixer.gain(2, 2.0f);
-  outputMixerL.gain(2, 0.0f);
-  outputMixerR.gain(2, 0.0f);
-  testTone.frequency(freq);
-  testTone.amplitude(amp);
-  testTone.begin();
-}
-
-FLASHMEM void outputTone(float freq = 1000.0f, float amp = 0.0f)
-{
-  inputMixer.gain(2, 0.0f);
-  outputMixerL.gain(2, 1.0f);
-  outputMixerR.gain(2, 1.0f);
-  testTone.frequency(freq);
-  testTone.amplitude(amp);
-  testTone.begin();
+  inputMixer.gain(3, 2.0f);
+  inputTestTone.end();
+  inputTestTone.frequency(freq);
+  inputTestTone.phase(0.0f);
+  inputTestTone.amplitude(amp);
+  inputTestTone.begin();
 }
 
 FLASHMEM void doTestTone(float freq = 1000.0f, float amp = 0.0f, float t = 0.0f)
 {
-  testTone.end();
+  inputTone();
 
   float cycleTime = 1.0f / freq;
   if (t < cycleTime) t = cycleTime;
@@ -180,14 +168,10 @@ FLASHMEM void doTestTone(float freq = 1000.0f, float amp = 0.0f, float t = 0.0f)
   float blockTime = (float)AUDIO_BLOCK_SAMPLES / (float)AUDIO_SAMPLE_RATE_EXACT;
   float blockCount = t / blockTime;  
 
-  inputMixer.gain(2, 2.0f);
-  outputMixerL.gain(2, 0.0f);
-  outputMixerR.gain(2, 0.0f);
+  inputTone(freq, amp);
 
-  testTone.frequency(freq);
-  testTone.amplitude(amp);
-  testTone.phase(0.0f);
-  testTone.begin();
+  levelOutL.read();
+  levelOutR.read();
 
   levelOutCount = 2 + (int)blockCount;
 }
@@ -238,7 +222,7 @@ void readLevels()
     uint32_t countR = levelOutR.getCount();
     if (countL >= levelOutCount && countR >= levelOutCount)
     {
-      testTone.end();
+      inputTone();
       levelOutCount = 0;
       Serial.printf("%.7f,%.7f,%u,%u\n", levelOutL.read(), levelOutR.read(), countL, countR);
     }

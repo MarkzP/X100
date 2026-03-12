@@ -102,9 +102,9 @@ EFFECT(ota)
 EPARAMS(distortion)
 {
   Parameter("gain", Parameter::PT_Float, 0.5f),
-  Parameter("bottom", Parameter::PT_Float, 0.5f),
   Parameter("color", Parameter::PT_Float, 0.5f),
   Parameter("skew", Parameter::PT_Float, 0.0f),
+  Parameter("bottom", Parameter::PT_Float, 0.5f),
   Parameter("mid", Parameter::PT_Float, 0.5f),
   Parameter("tone", Parameter::PT_Float, 0.75f),
   Parameter("level", Parameter::PT_Float, 0.5f),
@@ -114,9 +114,9 @@ EFFECT(distortion)
 {
   int i = 0;
   Parameter& gain = e[i++];
-  Parameter& bottom = e[i++];
   Parameter& color = e[i++];
   Parameter& skew = e[i++];
+  Parameter& bottom = e[i++];
   Parameter& mid = e[i++];  
   Parameter& tone = e[i++];
   Parameter& level = e[i++];
@@ -125,9 +125,8 @@ EFFECT(distortion)
   bool enableChanged = enable.changed();
 
   if (enableChanged || gain.changed()) distortion.gain(gain);
-  if (enableChanged || bottom.changed()) distortion.bottom(bottom);
   if (enableChanged || color.changed() || skew.changed()) distortion.color(color, skew);
-  if (enableChanged || tone.changed() || mid.changed()) distortion.tone(tone, mid);
+  if (enableChanged || bottom.changed() || mid.changed() || tone.changed()) distortion.tone(bottom, mid, tone);
   if (enableChanged || level.changed()) distortion.level(level);
   if (enableChanged) distortion.enable(enable);
 });
@@ -207,7 +206,7 @@ EPARAMS(phaser)
   Parameter("rt_x", Parameter::PT_Coeff, 2.0f, 0.01f, 4.0f, 0.01f),
   Parameter("rt_z", Parameter::PT_Coeff, 0.01f),
   Parameter("rt_r", Parameter::PT_Coeff, 10.0f, 0.0f, 10.0f, 0.01f),
-  Parameter("stages", Parameter::PT_Coeff, 4.0f, 2.0f, 8.0f, 1.0f),
+  Parameter("stages", Parameter::PT_Coeff, 4.0f, 2.0f, 20.0f, 1.0f),
   Parameter("resonance", Parameter::PT_Coeff, 0.3f),
   Parameter("smoothing", Parameter::PT_Coeff, 20.0f, 0.0f, 500.0f),
   Parameter("f1", Parameter::PT_Coeff, 100.0f, 50.0f, 500.0f, 1.0f),

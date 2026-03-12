@@ -67,7 +67,7 @@ class AudioEffectOtaComp_F32 :
 
       if (_enable)
       {
-        _dcFilter.filterBlock(block);
+        //_dcFilter.filterBlock(block);
         _preFilter.filterBlock(block);
 
         float *p = block->data;
@@ -109,7 +109,7 @@ class AudioEffectOtaComp_F32 :
     float _output = 0.5f;
     float _sensitivity = 0.5f;
 
-    DcBlock _dcFilter;
+    //DcBlock _dcFilter;
     CascadeBiquad<2> _preFilter;
     CascadeBiquad<3> _postFilter;
 

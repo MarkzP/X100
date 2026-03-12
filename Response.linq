@@ -57,6 +57,12 @@ void Main()
 						port.Write(msg);
 
 						var resp = port.ReadLine();
+						
+						if (i == 0)
+						{
+							port.Write(msg);
+							resp = port.ReadLine();
+						}
 						//resp.Dump();
 						try
 						{
