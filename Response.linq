@@ -9,8 +9,8 @@ void Main()
     var freqs = new float[0];
 	var levelIn = new float[0];
 
-	var amplitude = -0.0f;//-0.615f;
-	bins = Enumerable.Range(0, 149).ToArray();
+	var amplitude = -3.0f;//-0.615f;
+	bins = Enumerable.Range(0, 151).ToArray();
 	freqs = bins.Select(i => logFreq(i)).ToArray();
 	levelIn = Enumerable.Range(0, freqs.Length).Select(i => amplitude).ToArray();
 	
@@ -48,9 +48,9 @@ void Main()
 
 				for (int i = 0; i < levelIn.Length && i < freqs.Length; i++)
 				{
-					levelOutsL[i] = -72.0f;
-					levelOutsR[i] = -72.0f;
-					var msg = $"doTestTone({freqs[i].ToString(System.Globalization.CultureInfo.InvariantCulture)},{dbToUnit(levelIn[i]).ToString(System.Globalization.CultureInfo.InvariantCulture)});";
+					levelOutsL[i] = -96.0f;
+					levelOutsR[i] = -96.0f;
+					var msg = $"doTestTone({freqs[i].ToString(System.Globalization.CultureInfo.InvariantCulture)},{levelIn[i].ToString("F2", System.Globalization.CultureInfo.InvariantCulture)});";
 					//msg.Dump();
 					for (int j = 0; j < 1; j++)
 					{
@@ -68,8 +68,8 @@ void Main()
 						{
 							var parts = resp.Replace("nan", "NaN").Replace("-NaN", "NaN").Split(',').Select(s => s.Trim());
 							//parts.Dump();
-							levelOutsL[i] = Math.Max(levelOutsL[i], unitToDb(float.Parse(parts.First(), System.Globalization.CultureInfo.InvariantCulture)) - levelIn[i]);
-							levelOutsR[i] = Math.Max(levelOutsR[i], unitToDb(float.Parse(parts.Skip(1).First(), System.Globalization.CultureInfo.InvariantCulture)) - levelIn[i]);
+							levelOutsL[i] = Math.Max(levelOutsL[i], float.Parse(parts.First(), System.Globalization.CultureInfo.InvariantCulture) - levelIn[i]);
+							levelOutsR[i] = Math.Max(levelOutsR[i], float.Parse(parts.Skip(1).First(), System.Globalization.CultureInfo.InvariantCulture) - levelIn[i]);
 						}
 						catch
 						{
@@ -94,7 +94,7 @@ void Main()
 	var xaxis = area.AxisX;
 
 	xaxis.Minimum = 10.0;
-	xaxis.Maximum = 20000.0;
+	xaxis.Maximum = 22050.0;
 	xaxis.RoundAxisValues();
 	
 	xaxis.IsLogarithmic = true;
@@ -122,5 +122,4 @@ float dbToUnit(float db) => (float)Math.Pow(10.0f, db / 20.0f);
 float unitToDb(float unit) => unit < 5.011872E-07f ? -126.0f : 20.0f * (float)Math.Log10(unit);
 
 
-float logFreq(int i) => i == 0 ? 10.0f : (float)(24.0 * Math.Pow(1.05, (double)(i - 10)));
-//int logFreq(int i) => (int)Math.Round(19.61526778504022638394310269766 * Math.Pow(1.0352649238413775043477881942112, (double)i));
+float logFreq(int i) => i == 0 ? 10.0f : (float)(24.0 * Math.Pow(1.0499429, (double)(i - 11)));

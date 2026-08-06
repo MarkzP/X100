@@ -15,14 +15,17 @@ class AudioEffectAutoWah_F32 :
     AudioEffectAutoWah_F32(void):
       AudioStream_F32(1, inputQueueArray)
     {
-      _svf.resonance(3.0f);
-      _svf.frequency(250.0f);
     }
 
     AudioEffectAutoWah_F32(const AudioSettings_F32 &settings):
-      AudioStream_F32(1, inputQueueArray), _svf(settings.sample_rate_Hz)
+      AudioStream_F32(1, inputQueueArray),
+      _sample_rate_Hz(settings.sample_rate_Hz),
+      _svf(settings.sample_rate_Hz)
     {
-      _sample_rate_Hz = settings.sample_rate_Hz;
+    }
+
+    FLASHMEM void begin()
+    {
       _svf.resonance(3.0f);
       _svf.frequency(250.0f);
     }
@@ -57,30 +60,42 @@ class AudioEffectAutoWah_F32 :
 
     virtual void update(void)
     {
+      if (!_enable)
+      {
+        audio_block_f32_t *bp = AudioStream_F32::receiveReadOnly_f32(0);
+        if (!bp) return;
+        AudioStream_F32::transmit(bp, 0);
+        AudioStream_F32::release(bp);
+        return;
+      }
+
       audio_block_f32_t *block = AudioStream_F32::receiveWritable_f32(0);
       if (!block) return;
 
-      if (_enable)
+      _svf.mix(_dry, 0.25f * _wet, 0.55f * _wet, 0.0f);
+
+
+      float sensitivity = _sensitivity;
+      float control = _control;
+      float smooth = _smooth;
+      float sample, level;
+
+      float *p = block->data;
+      float *end = p + block->length;
+      do
       {
-        _svf.mix(_dry, 0.25f * _wet, 0.55f * _wet, 0.0f);
+        sample = *p;
+        level = _d.detect(sample) * sensitivity;
+        control += (level - control) * (level > control ? smooth : _decay);
+        control = control < -_octave ? -_octave : control > _octave ? _octave : control;
+        _svf.control(control);
+        sample = _svf.filter(sample);
 
-        float *p = block->data;
-        float *end = p + block->length;
-        do
-        {
-          float sample = *p;
-          float level = _d.detect(sample) * _sensitivity;
-          _control += (level - _control) * (level > _control ? _smooth : _decay);
-          _control = _control < -_octave ? -_octave : _control > _octave ? _octave : _control;
-          _svf.control(_control);
-          sample = _svf.filter(sample);
-
-          *p++ = sample;
-        }
-        while (p < end);
+        *p++ = sample;
       }
+      while (p < end);
 
-      _control = FilterUtils::denormFloat(_control);
+      _control = control;
 
       AudioStream_F32::transmit(block, 0);
       AudioStream_F32::release(block);
@@ -88,12 +103,12 @@ class AudioEffectAutoWah_F32 :
 
   private:
     audio_block_f32_t *inputQueueArray[2];
-    float _sample_rate_Hz = AUDIO_SAMPLE_RATE_EXACT;
+    const float _sample_rate_Hz = AUDIO_SAMPLE_RATE_EXACT;
     static constexpr float _octave = 3.0f;
     static constexpr float _decay = 0.005f;
 
     Detector _d;
-    StateVariableFilter<4> _svf;
+    StateVariableFilter<2> _svf;
 
     bool _enable = false;
     float _control = 0.0f;

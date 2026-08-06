@@ -34,7 +34,7 @@
 void AudioFilterToneStack_F32::init(float sample_rate)
 {
   c = 2.0f * sample_rate;
-  bp = false;
+  _enable = false;
 
 #define k *1e3
 #define M *1e6
@@ -110,15 +110,20 @@ AudioFilterToneStack_F32 :: AudioFilterToneStack_F32(const AudioSettings_F32 &se
 
 void AudioFilterToneStack_F32::update()
 {
-	audio_block_f32_t *block = AudioStream_F32::receiveWritable_f32(0);
+  if (!_enable)
+  {
+    audio_block_f32_t *bp = AudioStream_F32::receiveReadOnly_f32(0);
+    if (!bp) return;
+    AudioStream_F32::transmit(bp, 0);
+    AudioStream_F32::release(bp);
+    return;
+  }
 
+	audio_block_f32_t *block = AudioStream_F32::receiveWritable_f32(0);
   if (!block) return;
   
-  if (!bp)
-  {
-    filter.process(block->data, block->data, block->length);
-    arm_scale_f32(block->data, gain, block->data, block->length);
-  }
+  filter.process(block->data, block->data, block->length);
+  arm_scale_f32(block->data, gain, block->data, block->length);
 
   AudioStream_F32::transmit(block, 0);
   AudioStream_F32::release(block);

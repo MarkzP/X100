@@ -24,20 +24,15 @@ class AudioEffectPreamp_F32 :
     {
     }
 
-    void begin()
+    FLASHMEM void begin()
     {
-      _f1.reset().setHighpass1p1z(25.0).begin();
-      _f2.reset().setLowpass1p1z(17500.0).begin();
+      _f1.setHighpassFirstOrder(20.0);
+      _f2.setLowpassFirstOrder(17500.0);
     }
 
-    void enable(bool enable = true)
+    FLASHMEM void enable(bool enable = true)
     {
       _enable = enable;
-    }
-
-    void level(float level = 0.5f)
-    {
-      _level = ((level < 0.0f ? 0.0f : level > 1.0f ? 1.0f : level) * 1.5f) + 0.25f;
     }
 
     virtual void update(void)
@@ -49,7 +44,6 @@ class AudioEffectPreamp_F32 :
       {
         _f1.filterBlock(block);
         _f2.filterBlock(block);
-        BlockOperations::scale(block, _level);
       }
 
       AudioStream_F32::transmit(block, 0);
@@ -60,10 +54,8 @@ class AudioEffectPreamp_F32 :
     audio_block_f32_t *inputQueueArray[1];
     bool _enable = true;
 
-    HQ1p1zBiquad _f1;
-    HQ1p1zBiquad _f2;
-
-    float _level = 1.0f;
+    HQFirstOrder _f1;
+    HQFirstOrder _f2;
 };
 
 #endif

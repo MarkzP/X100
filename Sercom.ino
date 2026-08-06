@@ -12,15 +12,15 @@ const int maxLen = 63;
 const int maxParams = 63;
 
 COMMAND_States com_state = COM_Init;
-char com_instance[maxLen + 1];
-char com_function[maxLen + 1];
+__attribute__((aligned(8))) char com_instance[maxLen + 1];
+__attribute__((aligned(8))) char com_function[maxLen + 1];
 int com_ii = 0;
 int com_fi = 0;
 int com_vi = 0;
 int com_pi = 0;
 bool com_hd = false;
-char com_value[maxLen + 1];
-float com_params[maxParams + 1];
+__attribute__((aligned(8))) char com_value[maxLen + 1];
+__attribute__((aligned(8))) float com_params[maxParams + 1];
 int com_decimal = 0;
 bool com_neg = false;
 bool com_escape = false;
@@ -104,7 +104,6 @@ void handleChar(char c)
           default: c = '?'; break;
         }
         if (com_vi < maxLen) com_value[com_vi++] = c;
-        com_value[com_vi] = 0;
         com_escape = false;
       }
       break;        
@@ -113,6 +112,12 @@ void handleChar(char c)
 
 FLASHMEM void loadPreset(const char* fname)
 {
+  if (!SD.mediaPresent())
+  {
+    if (debug) Serial.print("No SD card\r\n");
+    return;
+  }
+
   File f = SD.open(fname);
   if (f)
   {
@@ -125,6 +130,12 @@ FLASHMEM void loadPreset(const char* fname)
 
 FLASHMEM void listPresets()
 {
+  if (!SD.mediaPresent())
+  {
+    if (debug) Serial.print("No SD card\r\n");
+    return;
+  }
+
   File dir = SD.open("/");
   if (dir)
   {
@@ -139,6 +150,12 @@ FLASHMEM void listPresets()
 
 FLASHMEM void dumpPreset(const char* fname)
 {
+  if (!SD.mediaPresent())
+  {
+    if (debug) Serial.print("No SD card\r\n");
+    return;
+  }
+
   File f = SD.open(fname);
   if (f)
   {
@@ -150,7 +167,5 @@ FLASHMEM void dumpPreset(const char* fname)
 
 void handleSercom()
 {
-  if (!Serial.available()) return;
-
-  handleChar((char)Serial.read());
+  while (Serial.available()) handleChar((char)Serial.read());
 }

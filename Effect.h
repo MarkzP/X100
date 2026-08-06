@@ -61,6 +61,9 @@ class Parameter
       _lastval = -_value;      
     }
 
+    Parameter(Parameter const&) = delete;
+    Parameter& operator=(Parameter const&) = delete;
+
     bool stepChange(int steps)
     {
       switch (_type)
@@ -251,6 +254,9 @@ class Effect
       }
       _currentEffect = this;
     }
+
+    Effect(Effect const&) = delete;
+    Effect& operator=(Effect const&) = delete;
 
     Parameter *param()
     {
@@ -458,8 +464,7 @@ class Effect
 
 Effect *Effect::_currentEffect;
 
-#define EPARAMS(_n_) Parameter _efxp_ ## _n_[] =
-//#define EFFECT(_n_) Effect _efx_ ## _n_(#_n_, sizeof(_efxp_ ## _n_) / sizeof(_efxp_ ## _n_[0]), _efxp_ ## _n_, [](Effect &e)-> FLASHMEM void 
-#define EFFECT(_n_) Effect _efx_ ## _n_(#_n_, sizeof(_efxp_ ## _n_) / sizeof(_efxp_ ## _n_[0]), _efxp_ ## _n_, [](Effect &e)-> void 
+#define EPARAMS(_n_) static __attribute__((aligned(8))) Parameter _efxp_ ## _n_[] =
+#define EFFECT(_n_) Effect _efx_ ## _n_(#_n_, sizeof(_efxp_ ## _n_) / sizeof(_efxp_ ## _n_[0]), _efxp_ ## _n_, [](Effect &e)-> FLASHMEM void 
 
 #endif

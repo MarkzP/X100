@@ -20,11 +20,22 @@ class AudioEffectEqualizer_F32 :
     AudioEffectEqualizer_F32(const AudioSettings_F32 &settings):
       AudioStream_F32(1, inputQueueArray),
       _f1(settings.sample_rate_Hz),
-      _f2(settings.sample_rate_Hz)
+      _f2(settings.sample_rate_Hz),
+      _f3(settings.sample_rate_Hz),
+      _f4(settings.sample_rate_Hz),
+      _f5(settings.sample_rate_Hz),
+      _f6(settings.sample_rate_Hz),
+      _f7(settings.sample_rate_Hz),
+      _f8(settings.sample_rate_Hz)
     {
     }
 
-    void enable(bool enable = false)
+    void begin()
+    {
+      _f8.setLowpassFirstOrder(15000.0);
+    }
+
+    FLASHMEM void enable(bool enable = false)
     {
       _enable = enable;
     }
@@ -35,28 +46,17 @@ class AudioEffectEqualizer_F32 :
 
       switch (band)
       {
-        case 1: _g1 = db; break;
-        case 2: _g2 = db; break;
-        case 3: _g3 = db; break;
-        case 4: _g4 = db; break;
-        case 5: _g5 = db; break;
-        case 6: _g6 = db; break;
-        case 7: _g7 = db; break;
+        case 1: _f1.setPeak(100.0, db, _q); break;
+        case 2: _f2.setPeak(200.0, db, _q); break;
+        case 3: _f3.setPeak(400.0, db, _q); break;
+        case 4: _f4.setPeak(800.0, db, _q); break;
+        case 5: _f5.setPeak(1600.0, db, _q); break;
+        case 6: _f6.setPeak(3200.0, db, _q); break;
+        case 7: _f7.setHighShelfFirstOrder(6400.0, db); break;
       }
-
-      _f1.reset().setPeak(100.0, _g1, 1.0).begin();
-      _f2.reset()
-        .setPeak(200.0, _g2, 1.0)
-        .setPeak(400.0, _g3, 1.0)
-        .setPeak(800.0, _g4, 1.0)
-        .setPeak(1600.0, _g5, 1.0)
-        .setPeak(3200.0, _g6, 1.0)
-        .setHighShelf(6400.0, _g7, 0.0)
-        .setLowpass1p1z(15000.0)
-        .begin();
     }
 
-    void level(float level)
+    FLASHMEM void level(float level)
     {
       level = level < -9.0f ? -9.0f : level > 9.0f ? 9.0f : level;
       _level = powf(10.0f, level / 20.0f);
@@ -64,15 +64,27 @@ class AudioEffectEqualizer_F32 :
 
     virtual void update(void)
     {
+      if (!_enable)
+      {
+        audio_block_f32_t *bp = AudioStream_F32::receiveReadOnly_f32(0);
+        if (!bp) return;
+        AudioStream_F32::transmit(bp, 0);
+        AudioStream_F32::release(bp);
+        return;
+      }
+
       audio_block_f32_t *block = AudioStream_F32::receiveWritable_f32(0);
       if (!block) return;
 
-      if (_enable)
-      {
-        _f1.filterBlock(block);
-        _f2.filterBlock(block);
-        BlockOperations::scale(block, _level);
-      }
+      _f1.filterBlock(block);
+      _f2.filterBlock(block);
+      _f3.filterBlock(block);
+      _f4.filterBlock(block);
+      _f5.filterBlock(block);
+      _f6.filterBlock(block);
+      _f7.filterBlock(block);
+      _f8.filterBlock(block);
+      BlockOperations::scale(block, _level);
 
       AudioStream_F32::transmit(block, 0);
       AudioStream_F32::release(block);
@@ -82,16 +94,17 @@ class AudioEffectEqualizer_F32 :
     audio_block_f32_t *inputQueueArray[1];
     bool _enable = false;
 
-    HQBiquad _f1;
-    CascadeBiquad<7> _f2;
+    static constexpr double _q = 0.85f;
 
-    double _g1 = 0.0;
-    double _g2 = 0.0;
-    double _g3 = 0.0;
-    double _g4 = 0.0;
-    double _g5 = 0.0;
-    double _g6 = 0.0;
-    double _g7 = 0.0;
+    Biquad _f1;
+    Biquad _f2;
+    Biquad _f3;
+    Biquad _f4;
+    Biquad _f5;
+    Biquad _f6;
+    FirstOrder _f7;
+    FirstOrder _f8;
+
     float _level = 1.0f;
 };
 

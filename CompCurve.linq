@@ -16,32 +16,45 @@ void Main()
 	{
 		using (var port = new System.IO.Ports.SerialPort(testPort))
 		{
-			port.Open();
-			port.ReadTimeout = 500 + (int)(time * 1000.0f);
-			port.Write("stats();");
-			Thread.Sleep(20);
-			var report = port.ReadExisting();
-			if (report.Contains("Proc"))
+			try
 			{
-				port.Write("setVolume(0);setInput(0);");
-				Thread.Sleep(20);
+				port.Open();
+			}
+			catch (IOException)
+			{
+				continue;
+			}
+			catch (UnauthorizedAccessException)
+			{
+				continue;
+			}
+			port.ReadTimeout = 500;
+			port.Write("stats();");
+			Thread.Sleep(100);
+			var report = port.ReadExisting();
+			if (report.Contains("32="))
+			{
+				port.ReadTimeout = 5000;
+				port.Write("setVolume(0);");
+				port.Write("printLevels(0);printTuner(0);");
+				Thread.Sleep(100);
 				port.ReadExisting();
 
 				for (int i = 0; i < levelIn.Length; i++)
 				{
-					var msg = $"doTestTone({freq.ToString(System.Globalization.CultureInfo.InvariantCulture)},{dbToUnit(levelIn[i]).ToString(System.Globalization.CultureInfo.InvariantCulture)},{time.ToString(System.Globalization.CultureInfo.InvariantCulture)});";
+					var msg = $"doTestTone({freq.ToString(System.Globalization.CultureInfo.InvariantCulture)},{levelIn[i].ToString("F2", System.Globalization.CultureInfo.InvariantCulture)},{time.ToString(System.Globalization.CultureInfo.InvariantCulture)});";
 					port.Write(msg);
 					var resp = port.ReadLine();
-					var parts = resp.Replace("nan", "NaN").Split(',').Select(s => s.Trim());
+					var parts = resp.Replace("nan", "NaN").Replace("-NaN", "NaN").Split(',').Select(s => s.Trim());
 					//parts.Dump();
-					levelOutsL[i] = unitToDb(float.Parse(parts.First(), System.Globalization.CultureInfo.InvariantCulture));
-					levelOutsR[i] = unitToDb(float.Parse(parts.Last(), System.Globalization.CultureInfo.InvariantCulture));
+					levelOutsL[i] = float.Parse(parts.First(), System.Globalization.CultureInfo.InvariantCulture);
+					levelOutsR[i] = float.Parse(parts.Skip(1).First(), System.Globalization.CultureInfo.InvariantCulture);
 
 					Console.WriteLine($"f={freq},i={levelIn[i]} => {levelOutsL[i]}, {levelOutsR[i]}");
 				}
 
 				Thread.Sleep(200);
-				port.Write("setVolume(1);setInput(1);");
+				port.Write("setVolume(1);");
 			}
 		}
 	}

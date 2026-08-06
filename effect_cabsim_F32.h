@@ -22,42 +22,50 @@ class AudioEffectCabSim_F32 :
       _roomL(settings),
       _roomR(settings),
       _fpre1L(settings.sample_rate_Hz),
-      _fpre1R(settings.sample_rate_Hz),
       _fpre2L(settings.sample_rate_Hz),
+      _fpre3L(settings.sample_rate_Hz),
+      _fpre4L(settings.sample_rate_Hz),
+      _fpre5L(settings.sample_rate_Hz),
+      _fpre6L(settings.sample_rate_Hz),
+      _fpre1R(settings.sample_rate_Hz),
       _fpre2R(settings.sample_rate_Hz),
+      _fpre3R(settings.sample_rate_Hz),
+      _fpre4R(settings.sample_rate_Hz),
+      _fpre5R(settings.sample_rate_Hz),
+      _fpre6R(settings.sample_rate_Hz),
       _frevL(settings.sample_rate_Hz),
       _frevR(settings.sample_rate_Hz),
-      _fpostL(settings.sample_rate_Hz),
-      _fpostR(settings.sample_rate_Hz)
+      _fpost1L(settings.sample_rate_Hz),
+      _fpost2L(settings.sample_rate_Hz),
+      _fpost1R(settings.sample_rate_Hz),
+      _fpost2R(settings.sample_rate_Hz)
     {
     }
 
     void begin()
     {
-      _fpre1L.reset().setHighpass(280.0).begin();
-      _fpre1R.reset().setHighpass(280.0).begin();
+      _fpre1L.setHighpassFirstOrder(280.0);
+      _fpre2L.setPeak(1300.0, -14.0);
+      _fpre3L.setLowpass(3500.0, 1.4);
+      _fpre4L.setLowpass(14000.0);
 
-      _fpre2L.reset()
-        .setPeak(1300.0, -14.0)
-        .setLowpass(3500.0, 1.4)
-        .setLowpass(14000.0)
-        .begin();
+      _fpre1R.setHighpassFirstOrder(280.0);
+      _fpre2R.setPeak(1300.0, -14.0);
+      _fpre3R.setLowpass(3500.0, 1.4);
+      _fpre4R.setLowpass(14000.0);
 
-      _fpre2R.reset()
-        .setPeak(1300.0, -14.0)
-        .setLowpass(3500.0, 1.4)
-        .setLowpass(14000.0)
-        .begin();
+      _frevL.setHighpassFirstOrder(400.0);
+      _frevR.setHighpassFirstOrder(400.0);
 
-      _frevL.reset().setHighpass1p1z(400.0).begin();
-      _frevR.reset().setHighpass1p1z(400.0).begin();
-
-      _fpostL.reset().setLowpass(10000.0).setLowpass(10000.0).begin();
-      _fpostR.reset().setLowpass(10000.0).setLowpass(10000.0).begin();
+      _fpost1L.setLowpass(10000.0);
+      _fpost2L.setLowpass(10000.0);
+      _fpost1R.setLowpass(10000.0);
+      _fpost2R.setLowpass(10000.0);
 
       size();
       direct();
       room();
+      notch();
       enable();
     }
 
@@ -77,6 +85,33 @@ class AudioEffectCabSim_F32 :
     void room(float room = 0.5f)
     {
       _room = (room < 0.0f ? 0.0f : room > 1.0f ? 1.0f : room) * 0.25f;
+    }
+
+    void notch(float q = 0.0f, float low = 0.0f, float high = 0.0f)
+    {
+      q = q < 0.5f ? 0.5f : q > 5.0f ? 5.0f : q;
+
+      if (low < 550.0f || low > 2500.0f)
+      {
+        _fpre5L.setBypass();
+        _fpre5R.setBypass();
+      }
+      else
+      {
+        _fpre5L.setNotch(low, q);
+        _fpre5R.setNotch(low, q);
+      }
+
+      if (high < 900.0f || high > 7000.0f)
+      {
+        _fpre6L.setBypass();
+        _fpre6R.setBypass();
+      }
+      else
+      {
+        _fpre6L.setNotch(high, q);
+        _fpre6R.setNotch(high, q);
+      }
     }
 
     void enable(bool enable = false)
@@ -101,30 +136,34 @@ class AudioEffectCabSim_F32 :
       if (_enable)
       {
         _fpre1L.filterBlock(blockL);
-        _fpre1R.filterBlock(blockR);
         _fpre2L.filterBlock(blockL);
-        _fpre2R.filterBlock(blockR);
-
+        _fpre3L.filterBlock(blockL);
+        _fpre4L.filterBlock(blockL);
+        _fpre5L.filterBlock(blockL);
+        _fpre6L.filterBlock(blockL);
         _frevL.filterBlock(blockL, roomL);
-        _frevR.filterBlock(blockR, roomR);
-
         BlockOperations::scale(blockL, _direct);
-        BlockOperations::scale(blockR, _direct);
-
         BlockOperations::scale(roomL, _room);
-        BlockOperations::scale(roomR, _room);
-
         _delayL.delayBlock(roomL);
-        _delayR.delayBlock(roomR);
-
         _revL.processBlock(roomL);
-        _revR.processBlock(roomR);
-
         BlockOperations::add(roomL, blockL);
-        BlockOperations::add(roomR, blockR);
+        _fpost1L.filterBlock(blockL);
+        _fpost2L.filterBlock(blockL);
 
-        _fpostL.filterBlock(blockL);
-        _fpostR.filterBlock(blockR);
+        _fpre1R.filterBlock(blockR);
+        _fpre2R.filterBlock(blockR);
+        _fpre3R.filterBlock(blockR);
+        _fpre4R.filterBlock(blockR);
+        _fpre5R.filterBlock(blockR);
+        _fpre6R.filterBlock(blockR);
+        _frevR.filterBlock(blockR, roomR);
+        BlockOperations::scale(blockR, _direct);
+        BlockOperations::scale(roomR, _room);
+        _delayR.delayBlock(roomR);
+        _revR.processBlock(roomR);
+        BlockOperations::add(roomR, blockR);
+        _fpost1R.filterBlock(blockR);
+        _fpost2R.filterBlock(blockR);
       }
       else
       {
@@ -143,18 +182,28 @@ class AudioEffectCabSim_F32 :
     audio_block_f32_t *inputQueueArray[2];
     audio_block_f32_t _roomL;
     audio_block_f32_t _roomR;
-    HQ1p1zBiquad _fpre1L;
-    HQ1p1zBiquad _fpre1R;
-    CascadeBiquad<3> _fpre2L;
-    CascadeBiquad<3> _fpre2R;
-    CascadeBiquad<1> _frevL;
-    CascadeBiquad<1> _frevR;
-    CascadeBiquad<2> _fpostL;
-    CascadeBiquad<2> _fpostR;
+    FirstOrder _fpre1L;
+    Biquad _fpre2L;
+    Biquad _fpre3L;
+    Biquad _fpre4L;
+    Biquad _fpre5L;
+    Biquad _fpre6L;
+    FirstOrder _fpre1R;
+    Biquad _fpre2R;
+    Biquad _fpre3R;
+    Biquad _fpre4R;
+    Biquad _fpre5R;
+    Biquad _fpre6R;
+    FirstOrder _frevL;
+    FirstOrder _frevR;
+    Biquad _fpost1L;
+    Biquad _fpost2L;
+    Biquad _fpost1R;
+    Biquad _fpost2R;
     FreeverbL _revL;
     FreeverbR _revR;
-    StaticDelay<346> _delayL;
-    StaticDelay<291> _delayR;
+    RAM1Delay<346> _delayL;
+    RAM1Delay<291> _delayR;
 
     bool _enable = false;
     float _direct = 1.0f;

@@ -152,7 +152,7 @@ class SliderGroup
 		}
 	}
 
-	static string portName = "COM5";
+	static string portName = null;
 	static Dictionary<string, string> sendQueue = new Dictionary<string, string>();
 	static object queueLock = new object();
 	static object portLock = new object();
@@ -174,27 +174,7 @@ class SliderGroup
 		
 		if (string.IsNullOrEmpty(msgs)) return;
 
-		try
-		{
-			lock (portLock)
-			{
-				using (var port = new System.IO.Ports.SerialPort(portName))
-				{
-					tbCom.Text = "";
-					port.Open();
-					port.ReadTimeout = 15;
-					port.Write(msgs);
-					string rsp = null;
-					//do
-					//{
-						Thread.Sleep(100);
-						rsp = port.ReadExisting();
-						if (!string.IsNullOrEmpty(rsp)) tbCom.Text = rsp;
-					//} while (!string.IsNullOrEmpty(rsp));
-				}
-			}
-		}
-		catch {}			
+		SendReceive(msgs);			
 	}
 	
     enum ParameterType
@@ -211,176 +191,174 @@ class SliderGroup
 	static readonly TextBox tbCom = new TextBox();
 	static readonly TextBox tbPreset = new TextBox();
 
-	public static void Init()
+	public static bool DetectPort()
 	{
-		foreach (var testPort in System.IO.Ports.SerialPort.GetPortNames())
+		lock (portLock)
 		{
-			using (var port = new System.IO.Ports.SerialPort(testPort))
+			if (!string.IsNullOrEmpty(portName)) return true;
+
+			foreach (var testPort in System.IO.Ports.SerialPort.GetPortNames())
 			{
-				try
+				using (var port = new System.IO.Ports.SerialPort(testPort))
 				{
-					
-					port.Open();
-				}
-				catch (IOException)
-				{
-					//testPort.Dump();
-					continue;
-				}
-				catch (UnauthorizedAccessException)
-				{
-					//testPort.Dump();
-					continue;
-				}			
-				
-				port.ReadTimeout = 200;
-				port.ReadExisting();
-				port.Write("stats();");
-				Thread.Sleep(200);
-				var report = port.ReadExisting();
-				if (!report.Contains("32=")) continue;
-				
-				SliderGroup actions = new SliderGroup("Actions", null, true);
-				actions.AddButton("printLevels(1);", ("printLevels", "1"));
-				actions.AddButton("printLevels(0);", ("printLevels", "0"));
-				actions.AddButton("setInput(0);", ("setInput", "0"));
-				actions.AddButton("setInput(1);", ("setInput", "1"));
-				actions.AddButton("stats();", ("stats", "0"));
-				actions.AddControl(new Label(port.PortName));
-				actions.AddControl(tbCom);
-				actions.Dump();
-				
-				
-				SliderGroup tones = new SliderGroup("Input Tones", null, true);
-				tones.AddButton("Mute", ("tone", "1000,0"));
-				tones.AddButton("50", ("tone", "50,1"));
-				tones.AddButton("100", ("tone", "100,1"));
-				tones.AddButton("300", ("tone", "300,1"));
-				tones.AddButton("500", ("tone", "500,1"));
-				tones.AddButton("1.0k", ("tone", "1000,1"));
-				tones.AddButton("2.0k", ("tone", "2000,1"));
-				tones.AddButton("3.0k", ("tone", "3000,1"));
-				tones.AddButton("4.9k", ("tone", "4905,1"));
-				tones.AddButton("5.0k", ("tone", "5000,1"));
-				tones.AddButton("5.1k", ("tone", "5100,1"));
-				tones.AddButton("5.5k", ("tone", "5500,1"));
-				tones.AddButton("10k", ("tone", "10000,1"));
-				tones.AddButton("15k", ("tone", "15000,1"));
-				tones.Dump();
-				
-				SliderGroup outputTones = new SliderGroup("Output Tones", null, true);
-				outputTones.AddButton("Mute", ("outputTone", "1000,0"));
-				outputTones.AddButton("1", ("outputTone", "1,1"));
-				outputTones.AddButton("10", ("outputTone", "10,1"));
-				outputTones.AddButton("20", ("outputTone", "20,1"));
-				outputTones.AddButton("50", ("outputTone", "50,1"));
-				outputTones.AddButton("100", ("outputTone", "100,1"));
-				outputTones.AddButton("300", ("outputTone", "300,1"));
-				outputTones.AddButton("500", ("outputTone", "500,1"));
-				outputTones.AddButton("1.0k", ("outputTone", "1000,1"));
-				outputTones.AddButton("2.0k", ("outputTone", "2000,1"));
-				outputTones.AddButton("5.0k", ("outputTone", "5000,1"));
-				outputTones.AddButton("10k", ("outputTone", "10000,1"));
-				outputTones.AddButton("15k", ("outputTone", "15000,1"));
-				outputTones.AddButton("20k", ("outputTone", "20000,1"));
-				outputTones.Dump();
-
-				
-				port.Write("listPresets();");
-				Thread.Sleep(100);
-				report = port.ReadExisting();
-				SliderGroup presets = new SliderGroup("Presets", null, true);
-				foreach (var line in report.Split('\n').Select(r => r.Trim()).Where(r => !string.IsNullOrWhiteSpace(r) && !r.EndsWith(".bak") && !r.StartsWith("System")))
-				{
-					//presets.AddPresetButton(line);
-					var btn = new Button(line);
-					btn.Click += (o, e) =>
+					try
 					{
-						lock (queueLock)
+						port.Open();
+						port.ReadTimeout = 200;
+						port.ReadExisting();
+						port.Write("stats();");
+						Thread.Sleep(200);
+						var report = port.ReadExisting();
+						if (report.Contains("32="))
 						{
-							tbPreset.Text = line;
-							sendQueue["loadPreset"] = $"\"{line}\"";
-							sendTimer.Change(50, Timeout.Infinite);
-						}
-					};
-					presets.AddControl(btn);
-				}
-				var saveBtn = new Button("Save");
-				saveBtn.Click += (o, e) =>
-				{
-					lock (queueLock)
-					{
-						sendQueue["savePreset"] = $"\"{tbPreset.Text}\"";
-						sendTimer.Change(50, Timeout.Infinite);
-					}
-				};
-				
-				presets.AddControl(new Label("Preset name:"));			
-				presets.AddControl(tbPreset);
-				presets.AddControl(saveBtn);
-				
-				presets.Dump();
-				
-				port.Write("dumpAll();");
-				Thread.Sleep(100);
-				report = port.ReadExisting();
-				
-				SliderGroup group = null;
-				foreach (var line in report.Split('\n').Select(r => r.Trim()).Where(r => !string.IsNullOrWhiteSpace(r)))
-				{
-					//line.Dump();
-
-					if (line.Contains("[") && line.Contains("]"))
-					{
-						if (group != null) group.Dump();
-						var groupName = line.TrimEnd(']').TrimStart('[');
-						group = new SliderGroup(groupName, groupName);
-						Groups[groupName] = group;
-						
-					}
-					else if (line.Contains("="))
-					{
-						var parts = line.Split('=');
-						var paramName = parts.First();
-						if (paramName.Contains("."))
-						{
-							var groupName = paramName.Split('.').First();
-							if (!Groups.TryGetValue(groupName, out group))
-							{
-								group = new SliderGroup(groupName, groupName);
-								Groups[groupName] = group;
-							}
-							paramName = paramName.Split('.').Skip(1).First();
-						}
-						
-						var paramParts = parts.Skip(1).First().TrimEnd(';', '\r', '\n', ' ').Split(',');
-						
-						var paramType = (ParameterType)int.Parse(paramParts.First());
-						var paramValues = paramParts.Skip(1).Select(p => float.Parse(p, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
-
-						switch (paramType)
-						{
-							case ParameterType.PT_Float:
-								group.AddFloatSlider(paramName, paramValues[2], paramValues[3], paramValues[0], paramValues[1], paramValues[4]);
-								break;
-							case ParameterType.PT_Coeff:
-								group.AddFloatSlider(paramName, paramValues[2], paramValues[3], paramValues[0], paramValues[1], paramValues[4]);
-								break;
-							case ParameterType.PT_Enum:
-							case ParameterType.PT_Bool:
-								group.AddIntSlider(paramName, (int)paramValues[2], (int)paramValues[3], (int)paramValues[0], (int)paramValues[1]);
-								break;
-							case ParameterType.PT_Freq:
-								group.AddFreqSlider(paramName, paramValues[0], paramValues[1], paramValues[2], paramValues[3]);
-								break;
+							portName = testPort;
+							return true;
 						}
 					}
+					catch (IOException)
+					{
+						continue;
+					}
+					catch (UnauthorizedAccessException)
+					{
+						continue;
+					}			
 				}
-				if (group != null) group.Dump();
-				portName = testPort;
-				break;
 			}
 		}
+		return false;
+	}
+
+	public static string SendReceive(string msg)
+	{
+		if (!DetectPort()) return string.Empty;
+		lock (portLock)
+		{
+			using (var port = new System.IO.Ports.SerialPort(portName))
+			{
+				port.Open();
+				port.WriteTimeout = 25;
+				port.ReadTimeout = 25;
+				port.Write(msg);
+				Thread.Sleep(100);
+				return port.ReadExisting();
+			}
+		}
+	}
+
+	public static void Init()
+	{
+		if (!DetectPort()) return;
+
+		Util.ClearResults();	
+
+		SliderGroup actions = new SliderGroup("Actions", null, true);
+		actions.AddButton("printLevels(1);");
+		actions.AddButton("printLevels(0);");
+		actions.AddButton("reboot();");
+		actions.AddButton("stats();");
+		actions.AddControl(new Label(portName));
+		actions.AddControl(tbCom);
+		actions.Dump();
+		
+		
+		SliderGroup tones = new SliderGroup("Input Tones", null, true);
+		tones.AddButton("Mute", "tone(0,0);");
+		tones.AddButton("25", "tone(25,1);");
+		tones.AddButton("50", "tone(50,1);");
+		tones.AddButton("100", "tone(100,1);");
+		tones.AddButton("300", "tone(300,1);");
+		tones.AddButton("500", "tone(500,1);");
+		tones.AddButton("1.0k", "tone(1000,1);");
+		tones.AddButton("2.0k", "tone(2000,1);");
+		tones.AddButton("3.0k", "tone(3000,1);");
+		tones.AddButton("4.9k", "tone(4900,1);");
+		tones.AddButton("5.0k", "tone(5000,1);");
+		tones.AddButton("5.1k", "tone(5100,1);");
+		tones.AddButton("5.5k", "tone(5500,1);");
+		tones.AddButton("10k", "tone(10000,1);");
+		tones.AddButton("15k", "tone(15000,1);");
+		tones.Dump();
+		
+		var listPresets = SendReceive("listPresets();");
+		SliderGroup presets = new SliderGroup("Presets", null, true);
+		foreach (var presetName in listPresets.Split('\n').Select(r => r.Trim()).Where(r => !string.IsNullOrWhiteSpace(r) && !r.EndsWith(".bak") && !r.StartsWith("System")))
+		{
+			var btn = new Button(presetName);
+			btn.Click += (o, e) =>
+			{
+				SendReceive($"loadPreset(\"{presetName}\");");
+				Init();
+				tbPreset.Text = presetName;
+			};
+			presets.AddControl(btn);
+		}
+		var saveBtn = new Button("Save");
+		saveBtn.Click += (o, e) =>
+		{
+			SendReceive($"savePreset(\"{tbPreset.Text}\");");
+		};
+		
+		presets.AddControl(new Label("Preset name:"));			
+		presets.AddControl(tbPreset);
+		presets.AddControl(saveBtn);
+		
+		presets.Dump();
+		
+		var dumpAll = SendReceive("dumpAll();");
+		
+		SliderGroup group = null;
+		foreach (var line in dumpAll.Split('\n').Select(r => r.Trim()).Where(r => !string.IsNullOrWhiteSpace(r)))
+		{
+			//line.Dump();
+
+			if (line.Contains("[") && line.Contains("]"))
+			{
+				if (group != null) group.Dump();
+				var groupName = line.TrimEnd(']').TrimStart('[');
+				group = new SliderGroup(groupName, groupName);
+				Groups[groupName] = group;
+				
+			}
+			else if (line.Contains("="))
+			{
+				var parts = line.Split('=');
+				var paramName = parts.First();
+				if (paramName.Contains("."))
+				{
+					var groupName = paramName.Split('.').First();
+					if (!Groups.TryGetValue(groupName, out group))
+					{
+						group = new SliderGroup(groupName, groupName);
+						Groups[groupName] = group;
+					}
+					paramName = paramName.Split('.').Skip(1).First();
+				}
+				
+				var paramParts = parts.Skip(1).First().TrimEnd(';', '\r', '\n', ' ').Split(',');
+				
+				var paramType = (ParameterType)int.Parse(paramParts.First());
+				var paramValues = paramParts.Skip(1).Select(p => float.Parse(p, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+
+				switch (paramType)
+				{
+					case ParameterType.PT_Float:
+						group.AddFloatSlider(paramName, paramValues[2], paramValues[3], paramValues[0], paramValues[1], paramValues[4]);
+						break;
+					case ParameterType.PT_Coeff:
+						group.AddFloatSlider(paramName, paramValues[2], paramValues[3], paramValues[0], paramValues[1], paramValues[4]);
+						break;
+					case ParameterType.PT_Enum:
+					case ParameterType.PT_Bool:
+						group.AddIntSlider(paramName, (int)paramValues[2], (int)paramValues[3], (int)paramValues[0], (int)paramValues[1]);
+						break;
+					case ParameterType.PT_Freq:
+						group.AddFreqSlider(paramName, paramValues[0], paramValues[1], paramValues[2], paramValues[3]);
+						break;
+				}
+			}
+		}
+		if (group != null) group.Dump();
 	}
 
 	string name;
@@ -401,46 +379,38 @@ class SliderGroup
 
 		if (!string.IsNullOrEmpty(channel))
 		{
-			var resetBtn = new Button("Reset");
-			resetBtn.Click += (o, e) =>
-			{
-				sliders.ToList().ForEach(s => s.Reset());
-				lock (queueLock)
-				{
-					sendQueue[$"{channel}.reset"] = string.Empty;
-					sendTimer.Change(20, Timeout.Infinite);
-				}
-			};
-			sp.Children.Add(resetBtn);
+			//var resetBtn = new Button("Reset");
+			//resetBtn.Click += (o, e) =>
+			//{
+			//	SendReceive($"{channel}.reset");
+			//	sliders.ToList().ForEach(s => s.Reset());
+			//};
+			//sp.Children.Add(resetBtn);
 			
-			var printBtn = new Button("Print");
-			printBtn.Click += (o, e) =>
-			{
-				foreach(var slider in sliders)
-				{
-					$"{slider.name}.change({slider}f);".Dump();
-				}
-			};
-			sp.Children.Add(printBtn);
+			//var printBtn = new Button("Print");
+			//printBtn.Click += (o, e) =>
+			//{
+			//	foreach(var slider in sliders)
+			//	{
+			//		$"{slider.name}.change({slider}f);".Dump();
+			//	}
+			//};
+			//sp.Children.Add(printBtn);
 		}
 		
 	}
-
-	public SliderGroup AddButton(string name, params (string, string)[] commands)
+	
+	public SliderGroup AddButton(string name, string command = null)
 	{
+		if (string.IsNullOrEmpty(name)) return this;
+		
 		var btn = new Button(name);
 		btn.Click += (o, e) =>
 		{
-			lock (queueLock)
-			{
-				foreach (var command in commands)
-				{
-					sendQueue[command.Item1] = command.Item2 ?? string.Empty;
-				}
-				sendTimer.Change(50, Timeout.Infinite);
-			}
+			tbCom.Text = SendReceive(command ?? name);
 		};
-		sp.Children.Add(btn);
+		sp.Children.Add(btn);		
+		
 		return this;
 	}
 

@@ -22,9 +22,14 @@ class AudioEffectHDR_F32 :
     {
     }
 
-    float db_low() { return FilterUtils::u2dB(_ld.level()); }
-    float db_high() { return FilterUtils::u2dB(_hd.level()); }
-    float gain() { return _gain; }
+    FLASHMEM void level(float level = 0.5f)
+    {
+      _level = ((level < 0.0f ? 0.0f : level > 1.0f ? 1.0f : level) * 1.5f) + (level > 0.0f ? 0.25f : 0.0f);
+    }
+
+    FLASHMEM float db_low() const { return FilterUtils::u2dB(_ld.level()); }
+    FLASHMEM float db_high() const { return FilterUtils::u2dB(_hd.level()); }
+    FLASHMEM float gain() const { return _gain; }
 
     virtual void update(void)
     {
@@ -37,6 +42,9 @@ class AudioEffectHDR_F32 :
         return;
       }
 
+      float level = _level;
+      float gain = _gain;
+
       float *pl = blockL->data;
       float *ph = blockH->data;
       float *endl = pl + blockL->length;
@@ -44,7 +52,7 @@ class AudioEffectHDR_F32 :
       {
         float rs = *pl;
         float hs = *ph;
-        float ls = rs * _gain;
+        float ls = rs * gain;
 
         float low = _ld.detect(ls);
         float high = _hd.detect(hs);
@@ -63,21 +71,23 @@ class AudioEffectHDR_F32 :
 
           float gainError = (high / low) - 1.0f;
           gainError = lx < 0.5f ? gainError * lx : gainError * hx;
-          gainError *= 0.00025f;
-          gainError = FilterUtils::denormFloat(gainError);
-          _gain += gainError;
-          _gain = _gain < _minGain ? _minGain : _gain > _maxGain ? _maxGain : _gain;
+          gain += gainError * 0.00025f;
+          gain = gain < _minGain ? _minGain : gain > _maxGain ? _maxGain : gain;
         }
         else
         {
           // high above max - use low gain input only
           *pl = ls;
         }
+
+        *pl *= level;
         
         pl++;
         ph++;
       }
       while (pl < endl);
+
+      _gain = gain;
 
       AudioStream_F32::transmit(blockL, 0);
       AudioStream_F32::release(blockL);
@@ -93,6 +103,7 @@ class AudioEffectHDR_F32 :
     static constexpr float _maxGain = 6.0f;
     static constexpr float _minGain = 3.0f;
     float _gain = 4.0f;
+    float _level = 1.0f;
 };
 
 #endif

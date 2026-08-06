@@ -15,16 +15,20 @@ class AudioEffectTremolo_F32 :
     AudioEffectTremolo_F32(void):
       AudioStream_F32(1, inputQueueArray)
     {
-      _sample_rate_Hz = AUDIO_SAMPLE_RATE_EXACT;
     }
 
     AudioEffectTremolo_F32(const AudioSettings_F32 &settings):
-      AudioStream_F32(1, inputQueueArray), _lfo(settings.sample_rate_Hz)
+      AudioStream_F32(1, inputQueueArray),
+      _sample_rate_Hz(settings.sample_rate_Hz),
+      _lfo(settings.sample_rate_Hz)
     {
-      _sample_rate_Hz = settings.sample_rate_Hz;
     }
 
-    void depth(float depth = 0.0f)
+    FLASHMEM void begin()
+    {
+    }
+
+    FLASHMEM void depth(float depth = 0.0f)
     {
       if (depth <= 0.0f)
       {
@@ -41,7 +45,7 @@ class AudioEffectTremolo_F32 :
       }
     }
 
-    void rate(float rate = 0.2f)
+    FLASHMEM void rate(float rate = 0.2f)
     {
       rate = rate < 0.0f ? 0.0f : rate > 10.0f ? 10.0f : rate;
       _lfo.freq(rate);
@@ -49,25 +53,36 @@ class AudioEffectTremolo_F32 :
 
     virtual void update(void)
     {
-      audio_block_f32_t *block = AudioStream_F32::receiveWritable_f32(0);
-
-      if (!block) return;
-
-      if (_enable)
+      if (!_enable)
       {
-        float *p = block->data;
-        float *end = p + block->length;
-        do
-        {
-          float mod = (_lfo.next() * _depth) + _offset;
-          mod = mod < 0.0f ? 0.0f : mod > 1.0f ? 1.0f : mod;
-          _smm += (mod - _smm) * _smooth;
-          *p++ *= _smm;
-        }
-        while (p < end);
+        audio_block_f32_t *bp = AudioStream_F32::receiveReadOnly_f32(0);
+        if (!bp) return;
+        AudioStream_F32::transmit(bp, 0);
+        AudioStream_F32::release(bp);
+        return;
       }
 
-      _smm = FilterUtils::denormFloat(_smm);
+      audio_block_f32_t *block = AudioStream_F32::receiveWritable_f32(0);
+      if (!block) return;
+
+      float depth = _depth;
+      float offset = _offset;
+      float smooth = _smooth;
+      float smm = _smm;
+      float mod;
+
+      float *p = block->data;
+      float *end = p + block->length;
+      do
+      {
+        mod = (_lfo.next() * depth) + offset;
+        mod = mod < 0.0f ? 0.0f : mod > 1.0f ? 1.0f : mod;
+        smm += (mod - smm) * smooth;
+        *p++ *= smm;
+      }
+      while (p < end);
+
+      _smm = smm;
 
       AudioStream_F32::transmit(block, 0);
       AudioStream_F32::release(block);
@@ -75,8 +90,8 @@ class AudioEffectTremolo_F32 :
 
   private:
     audio_block_f32_t *inputQueueArray[1];
-    TriangleLfo _lfo;
-    float _sample_rate_Hz;
+    const float _sample_rate_Hz = AUDIO_SAMPLE_RATE_EXACT;
+    TriangleLfo _lfo;    
     float _smooth = 0.005f;
     float _smm = 0.0f;
     float _depth = 0.0f;

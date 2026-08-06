@@ -68,10 +68,11 @@ public:
 
   void process(float *src, float *dst, uint32_t blockSize)
   {
+		float in, y;
     for (uint16_t i = 0; i<blockSize; i++)
     {
-      float in = *src++;
-      float y = h[0] + b[0] * in;
+      in = *src++;
+      y = h[0] + b[0] * in;
 
       for (uint16_t j = 1; j < N; ++j)
         h[j - 1] = h[j] + b[j] * in- a[j] * y;
@@ -89,6 +90,11 @@ public:
 	AudioFilterToneStack_F32();
   AudioFilterToneStack_F32(const AudioSettings_F32 &settings);
 	~AudioFilterToneStack_F32(){};
+
+	void begin()
+	{
+	}
+
 	virtual void update(void);
 
 		/**
@@ -148,7 +154,7 @@ public:
 		 __enable_irq();
 	}
 
- void enable(bool en) { bp = !en; }
+ void enable(bool enable) { _enable = enable; }
 	
 private:
   void init(float sample_rate);
@@ -156,7 +162,7 @@ private:
 	static const uint8_t order = 3;
 	_AudioFilterTDF2<order> filter;
 	audio_block_f32_t *inputQueueArray_f32[1];
-	bool bp = false;		// bypass
+	bool _enable = false;		// bypass
 	float b1t, b1m, b1l, b1d,
 		b2t, b2m2, b2m, b2l, b2lm, b2d,
 		b3lm, b3m2, b3m, b3t, b3tm, b3tl,

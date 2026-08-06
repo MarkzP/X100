@@ -10,7 +10,7 @@ class AudioEffectMultiband_F32 :
 //GUI: inputs:2, outputs:2  //this line used for automatic generation of GUI node
 //GUI: shortName:multiband  
   public:
-    void begin(
+    FLASHMEM void begin(
         int listen = 3,
         float lowMid = 0.15f,
         float midHigh = 0.6f,
@@ -74,6 +74,23 @@ class AudioEffectMultiband_F32 :
     
     virtual void update(void)
     {
+      if (bypass)
+      {
+        audio_block_f32_t *bpL = AudioStream_F32::receiveReadOnly_f32(0);
+        audio_block_f32_t *bpR = AudioStream_F32::receiveReadOnly_f32(1);
+        if (!bpL || !bpR)
+        {
+          if (bpL) AudioStream_F32::release(bpL);
+          if (bpR) AudioStream_F32::release(bpR);
+          return;
+        }
+        AudioStream_F32::transmit(bpL, 0);
+        AudioStream_F32::transmit(bpR, 1);
+        AudioStream_F32::release(bpR);
+        AudioStream_F32::release(bpL);
+        return;
+      }
+
       audio_block_f32_t *blockL = AudioStream_F32::receiveWritable_f32(0);
       audio_block_f32_t *blockR = AudioStream_F32::receiveWritable_f32(1);
       if (!blockL || !blockR)
@@ -111,26 +128,13 @@ class AudioEffectMultiband_F32 :
         gain3 = (tmp3 > gain3) ? gain3 + att3 * (tmp3 - gain3) : gain3 * rel3;
         tmp3 = 1.0f / (1.0f + driv3 * gain3);        
 
-        if (!bypass)
-        {
-          a = (fb3 * tmp3 * trim1) + (m * tmp2 * trim2) + (h * tmp3 * trim3);
 
-          *pl = a + s;
-          *pr = a - s;
-        }
+        a = (fb3 * tmp3 * trim1) + (m * tmp2 * trim2) + (h * tmp3 * trim3);
 
-        pl++;
-        pr++;
+        *pl++ = a + s;
+        *pr++ = a - s;
       }
       while (pl < endl);
-
-      gain1 = FilterUtils::denormFloat(gain1);
-      gain2 = FilterUtils::denormFloat(gain2);
-      gain3 = FilterUtils::denormFloat(gain3);
-      
-      fb1 = FilterUtils::denormFloat(fb1);
-      fb2 = FilterUtils::denormFloat(fb2);
-      fb3 = FilterUtils::denormFloat(fb3);
 
       AudioStream_F32::transmit(blockL, 0);
       AudioStream_F32::transmit(blockR, 1);

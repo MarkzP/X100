@@ -56,7 +56,7 @@ const byte led_chars[] = {
 
 
 
-void print(const char *s)
+FLASHMEM void print(const char *s)
 {
   byte buf[] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
@@ -76,7 +76,7 @@ void print(const char *s)
   digitalWriteFast(PIN_SPI_CS, HIGH);
 }
 
-void displayTunerHW(float freq, int note, int semitone, float cents)
+FLASHMEM void displayTunerHW(float freq, int note, int semitone, float cents)
 {
   char buf[] = "        ";
 
@@ -97,8 +97,8 @@ void displayTunerHW(float freq, int note, int semitone, float cents)
     case 11: buf[i] = 'G'; buf[i + 1] = '#'; break;
   }
   
-  int c = round(cents * 0.25f);
-  switch (c)
+  int qc = round(cents * 0.25f);
+  switch (qc)
   {
     case -7:
     case -6:
@@ -122,13 +122,11 @@ void displayTunerHW(float freq, int note, int semitone, float cents)
 
 FLASHMEM void HW_Setup()
 {
-  //hdr.setGain(4.039748f);
-  
   codec.enable();
 
   SPI.begin();
   SPI.setBitOrder(MSBFIRST);
-  SPI.setClockDivider(SPI_CLOCK_DIV4);
+  SPI.setClockDivider(SPI_CLOCK_DIV2);
   SPI.setDataMode(SPI_MODE0);
   pinMode(PIN_SPI_CS, OUTPUT);
   digitalWriteFast(PIN_SPI_CS, HIGH);
